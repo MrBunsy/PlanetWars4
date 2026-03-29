@@ -16,9 +16,9 @@ import {Vector} from './geometry.js'
  * 
  */
 let world = new World()
-let renderer = new WorldRenderer()
+let renderer = new WorldRenderer(12)
 
-renderer.addViewport(new Viewport(new Vector(400,400), 1, document.getElementById("planet_wars0").getContext("2d")))
+renderer.addViewport(new Viewport(new Vector(400,400), 1, document.getElementById("planet_wars0").getContext("2d"), 800, 800))
 
 renderer.render()
 
