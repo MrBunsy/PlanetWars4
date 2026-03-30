@@ -55,7 +55,7 @@ export class World{
         this.missileRadius = missileRadius;
         this.blackHoleRadius = blackHoleRadius;
 
-        this.spawnRadius = this.random.nextBetween(radius*0.75, radius*0.9);
+        this.spawnRadius = this.random.nextBetween(radius*0.8, radius*0.95);
         
         this.planetMinR = planetMinR;
         this.planetMaxR = planetMaxR;
@@ -96,14 +96,25 @@ export class World{
         for(let playerIndex =0; playerIndex< toPlonk ; playerIndex++){
             let nextPlayerIndex = (playerIndex+1)%this.playerCount;
             let betweenPlayers = this.ships[playerIndex].position.average(this.ships[nextPlayerIndex].position)
-            planets = planets.concat(this.plonkPlanet(betweenPlayers, this.planetMinR, this.planetMaxR, 1));
+            planets = planets.concat(this.plonkPlanet(betweenPlayers, 1));
         }
+
+
+        if (this.playerCount > 2) 
+        {
+            
+            if (this.random.next() < 0.9) 
+            {
+                planets = planets.concat(this.plonkPlanet(new Vector(0,0), 2));
+            }
+        }
+
         return planets;
     }
 
-    plonkPlanet = function(roughPosition, minR, maxR, wibble)
+    plonkPlanet = function(roughPosition, wibble)
     {
-        let midR = (minR + maxR) / 2;
+        let midR = (this.planetMinR + this.planetMaxR) / 2;
         
         // let postion = roughPosition.add(new Vector(this.random.nextBetween(-midR, midR), this.random.nextBetween(-midR, midR)))
         //this.random.nextBetween(-midR, midR)//
@@ -114,7 +125,7 @@ export class World{
 
         let planetPosition = roughPosition.add(new Vector(x,y));
         
-        let planetRadius = this.random.nextBetween(minR, maxR);//roundNumber(minR + Math.round(Math.random() * (maxR - minR)));
+        let planetRadius = this.random.nextBetween(this.planetMinR, this.planetMaxR);//roundNumber(minR + Math.round(Math.random() * (maxR - minR)));
         
         // //this can't override planet pos if wibble==0 (stops planets getting to close to ship, hopefully)
         // if (wibble > 0 && y - planetRadius < 0) 
