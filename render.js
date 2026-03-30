@@ -6,13 +6,18 @@ export class Viewport{
         this.centre = centre;
         this.width = width,
         this.height = height;
+        // world units * zoom = pixels
         this.zoom = zoom;
         this.canvas = canvas;
         this.enabled = enabled;
-    }
+        // this.canvasCentre = new Vector(width*0.5/zoom, height*0.5/zoom);
 
+        this.topLeftInWorld = centre.subtract(new Vector(width*0.5/zoom, height*0.5/zoom))
+    }
+    //translate from world coords to canvas coordinates
     translate(position){
-        return position.add(this.centre.multiply(this.zoom));
+        
+        return position.subtract(this.topLeftInWorld).multiply(this.zoom);//multiply(this.zoom).add(this.canvasCentre);
     }
 }
 
@@ -37,7 +42,7 @@ export class WorldRenderer{
         this.viewports.push(viewport)
     }
 
-    render(){
+    render(world){
         for(const viewport of this.viewports){
             if(viewport.enabled){
                 let centre = viewport.translate(new Vector(0,0));
@@ -94,6 +99,35 @@ export class WorldRenderer{
                         viewport.canvas.fill();
                     }
                 }
+
+                for(const ship of world.ships){
+                    let shipPos = viewport.translate(ship.position);
+                    viewport.canvas.beginPath();
+                    viewport.canvas.arc(shipPos.x, shipPos.y, ship.radius*viewport.zoom, 0, Math.PI*2, true)
+                    viewport.canvas.fillStyle=ship.rgb;
+                    viewport.canvas.fill();
+                }
+
+                for(const planet of world.planets){
+                    let planetPos = viewport.translate(planet.position);
+                    let topleftwards = polar(Math.PI*1.25, planet.radius);
+                    let planetTopLeft = viewport.translate(planet.position.add(topleftwards))
+                    let grad =viewport.canvas.createRadialGradient(planetTopLeft.x,planetTopLeft.y, 0 ,planetPos.x, planetPos.y, planet.radius*2* viewport.zoom);
+	
+					grad.addColorStop(0, planet.colour);
+					//grad.addColorStop(0.8, Render.colourToRGB(Render.colourChangeBy(planet_wars.objects[i].colour,-192)));
+					grad.addColorStop(0.9, "rgb(0,0,0)");
+
+                    viewport.canvas.beginPath();
+                    viewport.canvas.fillStyle = grad;
+                    // viewport.canvas.moveTo(planetPos.x, planetPos.y);
+                    // viewport.canvas.arc((planet_wars.objects[i].pos[0] - viewport.x) * viewport.zoom, (planet_wars.objects[i].pos[1] - viewport.y) * viewport.zoom, planet_wars.objects[i].r * viewport.zoom, 0, Math.PI * 2, true);
+                    viewport.canvas.arc(planetPos.x, planetPos.y , planet.radius*viewport.zoom , 0 , Math.PI*2 , true);
+                    viewport.canvas.fill();
+				}
+				
+				
+				
 
 
             }

@@ -20,6 +20,10 @@ export class Vector{
     magnituteSquared(){
         return this.x*this.x + this.y*this.y;
     }
+
+    average(b){
+        return this.add(b).multiply(1/2);
+    }
 }
 
 export function polar(angle, radius){
@@ -49,6 +53,10 @@ export class SeededRandom{
             rand |= (this.seed & 1);
         }
         return rand / (rand_max+1); //and down to 0-0.999999
+    }
+
+    nextBetween(min, max){
+        return min + this.next()*(max-min);
     }
 
     getBit(bitSeed)

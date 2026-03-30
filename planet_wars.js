@@ -15,10 +15,13 @@ import {Vector} from './geometry.js'
  * TODO exactly how renderer and match will interact for firing missiles
  * 
  */
-let world = new World()
-let renderer = new WorldRenderer(12)
 
-renderer.addViewport(new Viewport(new Vector(400,400), 1, document.getElementById("planet_wars0").getContext("2d"), 800, 800))
+let seed = 3;//11;
 
-renderer.render()
+let world = new World(3, seed)
+let renderer = new WorldRenderer(seed)
+
+renderer.addViewport(new Viewport(new Vector(0,0), 1.0, document.getElementById("planet_wars0").getContext("2d"), 800, 800))
+
+renderer.render(world)
 
