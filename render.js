@@ -19,6 +19,10 @@ export class Viewport{
         
         return position.subtract(this.topLeftInWorld).multiply(this.zoom);//multiply(this.zoom).add(this.canvasCentre);
     }
+
+    translateFromPixelToWorld(pixelPosition){
+        return pixelPosition.multiply(1/this.zoom).add(this.topLeftInWorld)
+    }
 }
 
 /**
@@ -58,44 +62,58 @@ export class WorldRenderer{
                 //stars are in screen, not world, coordinates
                 for(let i=0;i<this.stars;i++)
                 {
-                    let maxDist=200;
-                    let tempX=this.random.next()*this.worldWidth;
-                    let tempY=this.random.next()*this.worldHeight;
-                    let tempR=this.random.next()*2;
-                    // let starPos = viewport.translate(new Vector(this.random.next()*viewport.width, this.random.next()*viewport.height))
+                    let maxDist=100;
+                    let radius=this.random.next()*2;
+                    
+                    //position in screen coordinates
                     let starPos = new Vector(this.random.next()*viewport.width, this.random.next()*viewport.height);
                     
-                    // let nearBH=this.nearHere([tempX,tempY] , blackHoles , maxDist);
-                    //
-                    // if(nearBH!==false)
-                    // {
-                    //     let angle=Math.atan2(blackHoles[nearBH][1] - tempY , blackHoles[nearBH][0] - tempX);
-                    //     let realDist=Math.sqrt(Math.pow(blackHoles[nearBH][0] - tempX , 2) + Math.pow(blackHoles[nearBH][1] - tempY , 2));
-                    //     let dist=(maxDist - realDist)/25;
-                    //     if(realDist > 50)
-                    //     {
-                    //         //if star isn't too clos to black hole, draw it being sucked in.
-                    //         viewport.canvas.beginPath();
-                    //         //white to tinted yellow
-                    //         viewport.canvas.lineWidth=tempR;
-                    //         viewport.canvas.lineCap="round";
-                    //         viewport.canvas.strokeStyle="rgb(255,255,"+Math.round(this.random.next()*100+155)+")";
-                    //         viewport.canvas.moveTo((tempX-viewport.canvas.x)*viewport.canvas.zoom , (tempY-viewport.canvas.y)*viewport.canvas.zoom);
-                    //         viewport.canvas.lineTo((tempX+Math.cos(angle)*dist-viewport.canvas.x)*viewport.canvas.zoom , (tempY+Math.sin(angle)*dist-viewport.canvas.y)*viewport.canvas.zoom);
-                    //         viewport.canvas.stroke();
-                    //     }
-                    //     else
-                    //     {
-                    //         //to keep rest of stars the same if a black hole moves
-                    //         this.random.next();
-                    //     }
-                    // }
-                    // else
+                    let colour = "rgb(255,255,"+Math.round(this.random.next()*100+155)+")";
+                    
+                    let starSimulatedPosition = viewport.translateFromPixelToWorld(starPos);
+
+                    let blackhole=world.nearestBlackhole(starSimulatedPosition, maxDist);
+                    
+                    if(blackhole!=null)
+                    {
+                        let angle=starSimulatedPosition.angleTo(blackhole.position)
+                        // let pixelDistance=viewport.translate(blackhole.position).distanceTo(starPos);
+                        // let dist=pixelDistance/viewport.zoom;
+                        let distance = blackhole.position.distanceTo(starSimulatedPosition);
+                        if(distance > 25)
+                        {
+                            let lineLength = viewport.zoom*(maxDist - distance)/10
+                            //if star isn't too clos to black hole, draw it being sucked in.
+                            viewport.canvas.beginPath();
+                            //white to tinted yellow
+                            viewport.canvas.lineWidth=radius;
+                            viewport.canvas.lineCap="round";
+                            viewport.canvas.strokeStyle=colour;
+                            viewport.canvas.moveTo(starPos.x, starPos.y);
+                            let toPos = starPos.add(polar(angle, lineLength));
+                            viewport.canvas.lineTo(toPos.x, toPos.y);
+                            viewport.canvas.stroke();
+
+                            if(false){
+                                viewport.canvas.beginPath();
+                                viewport.canvas.fillStyle="rgb(255,255,0)";
+                                let blackholePosition = viewport.translate(blackhole.position)
+                                viewport.canvas.arc(blackholePosition.x, blackholePosition.y , 10 , 0 , Math.PI*2 , true);
+                                viewport.canvas.fill();
+                            }
+                        }
+                        else
+                        {
+                            //to keep rest of stars the same if a black hole moves
+                            this.random.next();
+                        }
+                    }
+                    else
                     {
                         viewport.canvas.beginPath();
                         //white to tinted yellow
-                        viewport.canvas.fillStyle="rgb(255,255,"+Math.round(this.random.next()*100+155)+")";
-                        viewport.canvas.arc(starPos.x, starPos.y , tempR , 0 , Math.PI*2 , true);
+                        viewport.canvas.fillStyle=colour;
+                        viewport.canvas.arc(starPos.x, starPos.y , radius , 0 , Math.PI*2 , true);
                         viewport.canvas.fill();
                     }
                 }

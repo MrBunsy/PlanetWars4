@@ -40,6 +40,13 @@ class Planet extends Entity{
     }
 }
 
+class BlackHole extends Entity{
+    constructor(position, mass = 30000){
+        super(position);
+        this.mass = mass;
+    }
+}
+
 export class World{
     /***
      * Holds the state of the world and will interact with the physics engine to run a single match
@@ -71,22 +78,23 @@ export class World{
 
 
     generateMap(){
-        this.ships = this.generateShips();
-        this.planets = this.generatePlanets();
+        this.generateShips();
+        this.generatePlanets(this.playerCount + 3);
+        this.generateBlackholes();
     }
 
     generateShips(){
         let offsetAngle = this.random.next()*Math.PI*2;
-        let ships = []
+        this.ships = []
         for(let i=0; i< this.playerCount; i++){
-            ships.push(new PlayerShip(polar(i*Math.PI*2/this.playerCount + offsetAngle, this.spawnRadius), i, this.shipRadius));
+            this.ships.push(new PlayerShip(polar(i*Math.PI*2/this.playerCount + offsetAngle, this.spawnRadius), i, this.shipRadius));
         }
-        return ships;
     }
 
-    generatePlanets(){
+    generatePlanets(planetCountAim){
         //plonk a planet roughly between each consequtive player, and then one in the middle of all of them
-        let planets = [];
+
+        this.planets = [];
 
         let toPlonk = this.playerCount;
         if (this.playerCount == 2){
@@ -96,7 +104,7 @@ export class World{
         for(let playerIndex =0; playerIndex< toPlonk ; playerIndex++){
             let nextPlayerIndex = (playerIndex+1)%this.playerCount;
             let betweenPlayers = this.ships[playerIndex].position.average(this.ships[nextPlayerIndex].position)
-            planets = planets.concat(this.plonkPlanet(betweenPlayers, 1));
+            this.planets=this.planets.concat(this.plonkPlanet(betweenPlayers, 1));
         }
 
 
@@ -105,13 +113,48 @@ export class World{
             
             if (this.random.next() < 0.9) 
             {
-                planets = planets.concat(this.plonkPlanet(new Vector(0,0), 2));
+                this.planets=this.planets.concat(this.plonkPlanet(new Vector(0,0), 2));
             }
         }
 
-        return planets;
+        let loopLimit = 0;
+
+        while(this.planets.length < planetCountAim && loopLimit < 50){
+            loopLimit++;
+            this.planets=this.planets.concat(this.plonkPlanet(polar(this.random.next()*Math.PI*2, this.radius - this.planetMaxR*1.5), 0.5,));
+        }
+
+
+        
+
+
     }
 
+    generateBlackholes(blackholeCountAim=1){
+        this.blackholes = [];
+        let loopLimit = 0;
+        
+        while (this.blackholes.length < blackholeCountAim && loopLimit < 50) 
+        {
+            let randomPosition = polar(this.random.next()*Math.PI*2, this.radius*this.random.next());
+            
+            if (!this.objectOverlaps(randomPosition, 50, 0.5, 20)) 
+            {
+                //far from ships and quite far from other planets
+                this.blackholes.push(new BlackHole(randomPosition));
+            }
+            loopLimit++;
+        }
+
+    }
+
+    /**
+     * Roughly position a planet, with wibble*radius variation
+     * @param {} roughPosition Vector
+     * @param {*} wibble 
+     * @param {*} existingPlanets array of planets placed so far, to avoid collisions
+     * @returns 
+     */
     plonkPlanet = function(roughPosition, wibble)
     {
         let midR = (this.planetMinR + this.planetMaxR) / 2;
@@ -127,24 +170,7 @@ export class World{
         
         let planetRadius = this.random.nextBetween(this.planetMinR, this.planetMaxR);//roundNumber(minR + Math.round(Math.random() * (maxR - minR)));
         
-        // //this can't override planet pos if wibble==0 (stops planets getting to close to ship, hopefully)
-        // if (wibble > 0 && y - planetRadius < 0) 
-        // {
-        //     y = planetRadius * 2;
-        // }
-        // else if (wibble > 0 && y + planetRadius > planet_wars.worldHeight) 
-        // {
-        //     y = planet_wars.worldHeight - planetRadius * 2;
-        // }
-        
-        // if (wibble > 0 && x - planetRadius < 0) 
-        // {
-        //     x = planetRadius * 2;
-        // }
-        // else if (wibble > 0 && x + planetRadius > planet_wars.worldWidth) 
-        // {
-        //     x = planet_wars.worldHeight - planetRadius * 2;
-        // }
+        //TODO should colour be here or purely in the renderer? probably doesn't matter much at this complexity
         let density = 1;
         let colour = "rgb(0 128 0)";//"008000";
         switch (Math.floor(this.random.next()*3))
@@ -163,10 +189,7 @@ export class World{
                 break;
         }
         
-        // x = roundNumber(x);
-        // y = roundNumber(y);
-        
-        if (!this.planetOverlaps(planetPosition, planetRadius))// && Detect.farFromRings([x,y],tempR))
+        if (!this.objectOverlaps(planetPosition, planetRadius))// && Detect.farFromRings([x,y],tempR))
         {
             let angle = this.random.next()* Math.PI*2;
             
@@ -181,12 +204,26 @@ export class World{
     }
 
 
-    planetOverlaps(testPosition, testRadius){
+    objectOverlaps(testPosition, testRadius, minPlanetMultiplier=1/4, minShipMultiplier=15){
         for(const planet of this.planets){
-            if (testPosition.subtract(planet.position).magnituteSquared() < Math.pow(testRadius + planet.radius, 2)){
+            if (testPosition.subtract(planet.position).magnituteSquared() < Math.pow(testRadius + planet.radius + (testRadius + planet.radius)*minPlanetMultiplier, 2)){
+                return true;
+            }
+        }
+        for(const ship of this.ships){
+            if(testPosition.subtract(ship.position).magnituteSquared() < Math.pow(testRadius + ship.radius*minShipMultiplier, 2)){
                 return true;
             }
         }
         return false;
+    }
+
+    nearestBlackhole(testPosition, maxDistance){
+        for(const blackhole of this.blackholes){
+            if(testPosition.subtract(blackhole.position).magnituteSquared() < Math.pow(maxDistance, 2)){
+                return blackhole;
+            }
+        }
+        return null;
     }
 }

@@ -21,8 +21,20 @@ export class Vector{
         return this.x*this.x + this.y*this.y;
     }
 
+    magnitute(){
+        return Math.sqrt(this.magnituteSquared());
+    }
+
     average(b){
         return this.add(b).multiply(1/2);
+    }
+
+    angleTo(b){
+        return Math.atan2(b.y-this.y, b.x-this.x);
+    }
+
+    distanceTo(b){
+        return b.subtract(this).magnitute()
     }
 }
 

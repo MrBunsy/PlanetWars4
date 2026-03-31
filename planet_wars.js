@@ -16,9 +16,15 @@ import {Vector} from './geometry.js'
  * 
  */
 
-let seed = 3;//11;
+let seed = Math.round(Math.random()*10000);//3;//11;
 
-let world = new World(3, seed)
+// seed = 2241;
+// seed = 8655;
+seed = 4111;
+
+console.log(seed)
+
+let world = new World(4, seed)
 let renderer = new WorldRenderer(seed)
 
 renderer.addViewport(new Viewport(new Vector(0,0), 1.0, document.getElementById("planet_wars0").getContext("2d"), 800, 800))
