@@ -39,6 +39,7 @@ export class WorldRenderer{
     constructor(seed){
         this.backgroundViewports = [];
         this.liveViewports = [];
+        this.trailsViewports = [];
         this.random = new SeededRandom(seed);
         this.stars = 60;
     }
@@ -50,6 +51,12 @@ export class WorldRenderer{
     addLiveViewport(viewport){
         this.liveViewports.push(viewport)
     }
+
+    addTrailsViewport(viewport){
+        this.trailsViewports.push(viewport)
+    }
+
+    
 
     renderBackground(world){
         for(const viewport of this.backgroundViewports){
@@ -99,7 +106,7 @@ export class WorldRenderer{
                             viewport.canvas.lineTo(toPos.x, toPos.y);
                             viewport.canvas.stroke();
 
-                            if(false){
+                            if(true){
                                 viewport.canvas.beginPath();
                                 viewport.canvas.fillStyle="rgb(255,255,0)";
                                 let blackholePosition = viewport.translate(blackhole.position)
@@ -153,6 +160,26 @@ export class WorldRenderer{
 				
 
 
+            }
+        }
+    }
+
+    renderTrails(world){
+        for(const viewport of this.trailsViewports){
+            if(viewport.enabled){
+                for(const missile of world.missiles){
+                    let oldPosition = viewport.translate(missile.oldPosition);
+                    let newPosition = viewport.translate(missile.position);
+
+                    viewport.canvas.beginPath();
+                    viewport.canvas.lineWidth=2;
+                    viewport.canvas.lineCap="round";
+                    viewport.canvas.strokeStyle=missile.colour;
+                    viewport.canvas.moveTo(oldPosition.x, oldPosition.y);
+                    viewport.canvas.lineTo(newPosition.x, newPosition.y);
+                    viewport.canvas.stroke();
+
+                }
             }
         }
     }

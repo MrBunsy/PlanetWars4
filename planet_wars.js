@@ -28,8 +28,10 @@ let world = new World(4, seed)
 let renderer = new WorldRenderer(seed)
 
 renderer.addBackgroundViewport(new Viewport(new Vector(0,0), 1.0, document.getElementById("planet_wars0").getContext("2d"), 800, 800))
-let missileViewPort = new Viewport(new Vector(0,0), 1.0, document.getElementById("planet_wars1").getContext("2d"), 800, 800);
-renderer.addLiveViewport(missileViewPort)
+let missileTrailsViewPort = new Viewport(new Vector(0,0), 1.0, document.getElementById("planet_wars1").getContext("2d"), 800, 800);
+let missileViewPort = new Viewport(new Vector(0,0), 1.0, document.getElementById("planet_wars2").getContext("2d"), 800, 800);
+renderer.addLiveViewport(missileViewPort);
+renderer.addTrailsViewport(missileTrailsViewPort)
 
 renderer.renderBackground(world)
 
@@ -52,7 +54,7 @@ function clickEvent(e) {
     }
 
 //https://stackoverflow.com/a/42111623
-document.getElementById('planet_wars1').onclick = clickEvent;
+document.getElementById('planet_wars2').onclick = clickEvent;
 
 
 let delay_ms = 10;
@@ -60,6 +62,7 @@ let delay_ms = 10;
 function update(){
     world.physics.update(delay_ms/1000);
     renderer.renderLive(world);
+    renderer.renderTrails(world);
 }
 
 setInterval(update.bind(world.physics), delay_ms);

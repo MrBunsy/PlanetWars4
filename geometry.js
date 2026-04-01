@@ -41,6 +41,10 @@ export class Vector{
         //turn into unit vector
         return this.multiply(1/this.magnitute());
     }
+
+    copy(){
+        return new Vector(this.x, this.y);
+    }
 }
 
 export function polar(angle, radius){

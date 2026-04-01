@@ -26,7 +26,8 @@ export class PhysicsEntity{
         //back to the World object this is for
         // this.reference = reference;
 
-        this.newPosition = new Vector()
+        this.newPosition = new Vector();
+        this.oldPosition = position.copy();
     }
 
     collisionWith(otherEntity){
@@ -106,6 +107,7 @@ export class PhysicsEngine{
                 }
             }
             if (!entity.immobile){
+                entity.oldPosition = entity.position.copy();
                 entity.position = entity.newPosition;
             }
         }

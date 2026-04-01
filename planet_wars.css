@@ -1,0 +1,7 @@
+.planet_wars{
+    position: relative;
+}
+
+.planet_wars canvas{
+    border-radius: 50%;position:absolute; top:0; left:0;
+}
