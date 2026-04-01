@@ -164,7 +164,7 @@ export class WorldRenderer{
                 for(const missile of world.missiles){
                     let pixelPosition = viewport.translate(missile.position);
                     viewport.canvas.beginPath();
-                    viewport.canvas.arc(pixelPosition.x, pixelPosition.y, missile.radius*viewport.zoom, 0, Math.PI*2, true)
+                    viewport.canvas.arc(pixelPosition.x, pixelPosition.y, missile.radius*viewport.zoom*3, 0, Math.PI*2, true)
                     viewport.canvas.fillStyle=missile.colour;
                     viewport.canvas.fill();
                 }
