@@ -279,6 +279,15 @@ export class World{
 
     checkMapPossible()
     {
+        /*
+        New plan: I should be able to work out the maximum "gravitational difference" that can be overcome - I know
+        the mass and max initial speed of the missile, so I know it's kinetic energy.
+
+        other idea - check centre of mass of everything is aproximately central to make it fair
+
+        maybe a limit on maximum mass? I want to be able to fire missiles outwards
+        */
+
         //ported from old planet wars when it was modelled as charge rather than gravity. now it's called gravity but it's all the same constants
         let potentials = [];
         //build up array of potentials at each ship
