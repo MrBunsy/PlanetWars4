@@ -36,6 +36,11 @@ export class Vector{
     distanceTo(b){
         return b.subtract(this).magnitute()
     }
+
+    unit(){
+        //turn into unit vector
+        return this.multiply(1/this.magnitute());
+    }
 }
 
 export function polar(angle, radius){

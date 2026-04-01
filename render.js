@@ -37,17 +37,22 @@ export class Viewport{
  */
 export class WorldRenderer{
     constructor(seed){
-        this.viewports = [];
+        this.backgroundViewports = [];
+        this.liveViewports = [];
         this.random = new SeededRandom(seed);
         this.stars = 60;
     }
 
-    addViewport(viewport){
-        this.viewports.push(viewport)
+    addBackgroundViewport(viewport){
+        this.backgroundViewports.push(viewport)
     }
 
-    render(world){
-        for(const viewport of this.viewports){
+    addLiveViewport(viewport){
+        this.liveViewports.push(viewport)
+    }
+
+    renderBackground(world){
+        for(const viewport of this.backgroundViewports){
             if(viewport.enabled){
                 let centre = viewport.translate(new Vector(0,0));
                 // viewport.canvas.beginPath();
@@ -148,6 +153,21 @@ export class WorldRenderer{
 				
 
 
+            }
+        }
+    }
+
+    renderLive(world){
+        for(const viewport of this.liveViewports){
+            if(viewport.enabled){
+                viewport.canvas.clearRect(0, 0, viewport.width, viewport.height);
+                for(const missile of world.missiles){
+                    let pixelPosition = viewport.translate(missile.position);
+                    viewport.canvas.beginPath();
+                    viewport.canvas.arc(pixelPosition.x, pixelPosition.y, missile.radius*viewport.zoom, 0, Math.PI*2, true)
+                    viewport.canvas.fillStyle=missile.colour;
+                    viewport.canvas.fill();
+                }
             }
         }
     }

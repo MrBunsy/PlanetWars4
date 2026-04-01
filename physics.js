@@ -15,14 +15,22 @@ import {Vector, polar} from './geometry.js'
  * Only need to suport circles with mass
  */
 export class PhysicsEntity{
-    constructor(radius, mass, position, velocity=Vector(0,0), immobile=False){
+    constructor(physics, radius, mass, position, immobile=False, velocity=new Vector(0,0)){
+        this.physics = physics
         this.radius = radius;
         this.mass = mass;
         this.immobile = immobile;
         this.position = position;
         this.velocity = velocity;
 
-        this.newPosition = Vector()
+        //back to the World object this is for
+        // this.reference = reference;
+
+        this.newPosition = new Vector()
+    }
+
+    collisionWith(otherEntity){
+        //*shrug*
     }
 }
 
@@ -31,7 +39,7 @@ export class PhysicsEngine{
 
     // stealing constants from the old physics engine because it worked pretty well. Gravity was being modelled as coloumbs law
     // so this was k.
-    G = 8990000000;
+    G = 10;//8990000000;
     //F=-bV (drag), friction=b
     friction=5;
 
@@ -45,11 +53,12 @@ export class PhysicsEngine{
         return velocity.add(acceleration.multiply(time))
     }
 
-    advance(time_s){
+    update(time_s){
 
         for(const entity of this.entities){
             if(entity.immobile){
-                continue;
+                entity.newPosition = entity.position;
+                continue
             }
             //runge kutta 4
 
@@ -90,18 +99,22 @@ export class PhysicsEngine{
             let entity = this.entities[entityIndex];
 
             for(let otherEntityIndex=entityIndex+1; otherEntityIndex <this.entities.length; otherEntityIndex++){
+                let otherEntity = this.entities[otherEntityIndex];
                 if(entity.newPosition.subtract(otherEntity.newPosition).magnituteSquared() < Math.pow(entity.radius + otherEntity.radius, 2)){
                     // collision!
                     this.collision(entity, otherEntity);
                 }
             }
-            entity.position = entity.newPosition;
+            if (!entity.immobile){
+                entity.position = entity.newPosition;
+            }
         }
 
     }
 
     collision(entityA, entityB){
-
+        entityA.collisionWith(entityB);
+        entityB.collisionWith(entityA)
     }
 
     eulerIntegration=function(position,velocity,acceleration,time)
@@ -120,6 +133,35 @@ export class PhysicsEngine{
     addEntity(entity){
         this.entities.push(entity);
     }
+
+    addEntities(entities){
+        this.entities = this.entities.concat(entities)
+    }
+
+    removeEntity(entity){
+        const index = this.entities.indexOf(entity);
+        this.entities.splice(index,1);
+    }
+
+    /**
+     * Really getting electric potential as that was what was modelled before
+     * @param {*} position 
+     */
+    getGravitationalPotential(position){
+        let potential=0;
+        
+        for (const entity of this.entities)
+        {
+            let r=position.subtract(entity.position).magnitute()
+            if (r!=0){
+                //find the electric potential at a point
+                potential+=this.G * entity.mass / r;
+            }
+            
+        }
+        
+        return potential;
+    }
     /**
      * 
      * @param {*} entity 
@@ -127,21 +169,23 @@ export class PhysicsEngine{
      */
     getGravityForces(entity, entityPos)
     {
-        let force=Vector(0,0);
+        let force=new Vector(0,0);
         if(entity.mass > 0)
         {
-            for(let otherEntity in this.entities)
+            for(const otherEntity of this.entities)
             {
                 if(!Object.is(entity, otherEntity))
                 {
-                    let rsqrd=Math.pow(entityPos[0]-otherEntity.pos[0],2)+Math.pow(entityPos[1]-otherEntity.pos[1],2);
+                    let rsqrd=entityPos.subtract(otherEntity.position).magnituteSquared();
                     //coloumbs law:
                     //f=k.q1.q2/r^2
                     //or gravity:
                     //f=G*m1*m2/r**2
                     let gravityForce=this.G*otherEntity.mass*entity.mass/rsqrd;
-                    let gravityAngle=Math.atan2(entityPos[1]-otherEntity.pos[1],entityPos[0]-otherEntity.pos[0]);
-                    force = force.add(polar(gravityAngle, gravityForce))
+                    // let gravityAngle=Math.atan2(entityPos.y-otherEntity.position.y,entityPos.x-otherEntity.position.x);
+                    // with two positive masses this will pull the objects together
+                    let gravityDirection=otherEntity.position.subtract(entityPos).unit()
+                    force = force.add(gravityDirection.multiply(gravityForce));
                 }
             }
         }
@@ -151,5 +195,10 @@ export class PhysicsEngine{
     getFrictionForces(velocity)
     {    
         return velocity.multiply(-this.friction)
+    }
+
+    release(){
+        //release all references so it should be garbage collected
+        this.entities = null;
     }
 }

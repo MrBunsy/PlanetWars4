@@ -1,17 +1,18 @@
 "use strict";
 
 import { SeededRandom, Vector, polar } from "./geometry.js";
+import { PhysicsEngine, PhysicsEntity } from "./physics.js";
 
 /***
  * 
  */
-class Entity{
-    constructor(position) {
-        this.position = position;
-    }
-}
+// class Entity extends PhysicsEntity{
+//     constructor(radius, mass, position, immobile=False, velocity=Vector(0,0)) {
+//         super(radius, mass, position, immobile, velocity)
+//     }
+// }
 
-class PlayerShip extends Entity{
+class PlayerShip extends PhysicsEntity{
     colours = [
         "rgb(255,0,0)",
         "rgb(0,255,0)",
@@ -21,17 +22,24 @@ class PlayerShip extends Entity{
         
 
     ]
-    constructor(position, playerIndex, radius){
-        super(position);
+    constructor(world, position, playerIndex, radius){
+        super(world.physics, radius, 10, position, true);
+        this.world = world;
         this.playerIndex = playerIndex;
-        this.radius = radius;
+        // this.radius = radius;
         this.rgb = this.colours[playerIndex];
     }
+
+//     fireMissile(physics, direction){
+        
+//     }
 }
 
-class Planet extends Entity{
-    constructor(position, density, radius, colour, ring=false, angle=0){
-        super(position);
+class Planet extends PhysicsEntity{
+    constructor(world, position, density, radius, colour, ring=false, angle=0){
+        let mass = 0.5 * Math.pow(radius, 3) * density;
+        super(world.physics, radius, mass, position, true);
+        this.world = world;
         this.density = density;
         this.radius = radius;
         this.colour = colour;
@@ -40,10 +48,25 @@ class Planet extends Entity{
     }
 }
 
-class BlackHole extends Entity{
-    constructor(position, mass = 30000){
-        super(position);
+class BlackHole extends PhysicsEntity{
+    constructor(world, position, mass = 30000){
+        super(world.physics, 10, mass, position, true);
         this.mass = mass;
+    }
+}
+
+class Missile extends PhysicsEntity{
+    constructor(world, radius, position, velocity, colour){
+        super(world.physics, radius, 10, position, false, velocity);
+        this.world = world;
+        this.colour = colour;
+    }
+
+    collisionWith(otherEntity){
+        console.log("COLLISION")
+        this.physics.removeEntity(this);
+        this.physics = null;
+        this.world.removeMissile(this)
     }
 }
 
@@ -71,23 +94,50 @@ export class World{
         this.entities = [];
         this.ships = [];
         this.planets = [];
+
+        this.physics = new PhysicsEngine();
+
+        this.missiles = []
         
         this.generateMap();
 
     }
 
+    fireMissile(playerIndex, velocity){
+        let position = this.ships[playerIndex].position.add(velocity.unit().multiply(this.shipRadius + this.missileRadius + 1))
+        let missile = new Missile(this, this.missileRadius,position, velocity, this.ships[playerIndex].rgb);
+        this.missiles.push(missile)
+        this.physics.addEntity(missile)
+
+    }
+
+    removeMissile(missile){
+        const index = this.missiles.indexOf(missile);
+        this.missiles.splice(index,1);
+    }
 
     generateMap(){
-        this.generateShips();
-        this.generatePlanets(this.playerCount + 3);
-        this.generateBlackholes();
+        let attempts = 0;
+        do{
+            this.physics.release()
+            this.physics = new PhysicsEngine();
+            this.generateShips();
+            this.generatePlanets(this.playerCount + 3);
+            this.generateBlackholes();
+
+            this.physics.addEntities(this.ships);
+            this.physics.addEntities(this.planets);
+            this.physics.addEntities(this.blackholes);
+            attempts++;
+            console.log("generateMap attempt " + attempts)
+        }while(!this.checkMapPossible() && attempts < 1000)
     }
 
     generateShips(){
         let offsetAngle = this.random.next()*Math.PI*2;
         this.ships = []
         for(let i=0; i< this.playerCount; i++){
-            this.ships.push(new PlayerShip(polar(i*Math.PI*2/this.playerCount + offsetAngle, this.spawnRadius), i, this.shipRadius));
+            this.ships.push(new PlayerShip(this, polar(i*Math.PI*2/this.playerCount + offsetAngle, this.spawnRadius), i, this.shipRadius));
         }
     }
 
@@ -141,7 +191,7 @@ export class World{
             if (!this.objectOverlaps(randomPosition, 50, 0.5, 20)) 
             {
                 //far from ships and quite far from other planets
-                this.blackholes.push(new BlackHole(randomPosition));
+                this.blackholes.push(new BlackHole(this, randomPosition));
             }
             loopLimit++;
         }
@@ -196,7 +246,7 @@ export class World{
             //0.1 ish chance of ring
             // new planet_wars.planet([x, y], planetRadius, tempD, tempC, (Math.random() < 0.1) ? true : false, tempAngle)
             let ring = this.random.next() < 0.1;
-            let planet = new Planet(planetPosition, density, planetRadius, colour, ring, angle)
+            let planet = new Planet(this, planetPosition, density, planetRadius, colour, ring, angle)
             return [planet];
             // return true;
         }
@@ -225,5 +275,33 @@ export class World{
             }
         }
         return null;
+    }
+
+    checkMapPossible()
+    {
+        //ported from old planet wars when it was modelled as charge rather than gravity. now it's called gravity but it's all the same constants
+        let potentials = [];
+        //build up array of potentials at each ship
+        for (const ship of this.ships) 
+        {
+            potentials.push(this.physics.getGravitationalPotential(ship.position));
+        }
+        //checking voltage between ships, if this is less than -160,000 it seems to be impossible to hit.
+        //TODO check still true with the slightly larger maps and slightly different masses
+        for (let i = 0; i < potentials.length; i++) 
+        {
+            for (let j = 0; j < potentials.length; j++) 
+            {
+                //-160000
+                //-100000 - less seems to be better as this technique doesn't take into account paths
+                if (potentials[i] - potentials[j] < -90000) 
+                {
+                    return false;
+                }
+            }
+        }
+        
+        
+        return true;
     }
 }
