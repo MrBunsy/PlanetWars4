@@ -106,7 +106,7 @@ export class WorldRenderer{
                             viewport.canvas.lineTo(toPos.x, toPos.y);
                             viewport.canvas.stroke();
 
-                            if(true){
+                            if(false){
                                 viewport.canvas.beginPath();
                                 viewport.canvas.fillStyle="rgb(255,255,0)";
                                 let blackholePosition = viewport.translate(blackhole.position)

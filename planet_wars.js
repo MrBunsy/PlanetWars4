@@ -20,7 +20,7 @@ let seed = Math.round(Math.random()*10000);//3;//11;
 
 // seed = 2241;
 // seed = 8655;
-seed = 4111;
+// seed = 4111;
 
 console.log(seed)
 
@@ -48,7 +48,7 @@ function clickEvent(e) {
     let worldPos = missileViewPort.translateFromPixelToWorld(new Vector(x,y));
 
     for(const ship of world.ships){
-        let velocity = worldPos.subtract(ship.position).unit().multiply(100);
+        let velocity = worldPos.subtract(ship.position).unit().multiply(250);
         world.fireMissile(ship.playerIndex, velocity);
     }
     }
@@ -59,8 +59,12 @@ document.getElementById('planet_wars2').onclick = clickEvent;
 
 let delay_ms = 10;
 
+let physicsSteps = 10;
+
 function update(){
-    world.physics.update(delay_ms/1000);
+    for(let i =0; i<physicsSteps;i++){
+        world.physics.update((1/physicsSteps)*delay_ms/1000, i==0);
+    }
     renderer.renderLive(world);
     renderer.renderTrails(world);
 }

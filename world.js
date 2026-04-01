@@ -23,7 +23,7 @@ class PlayerShip extends PhysicsEntity{
 
     ]
     constructor(world, position, playerIndex, radius){
-        super(world.physics, radius, 10, position, true);
+        super(world.physics, radius, 0, position, true);
         this.world = world;
         this.playerIndex = playerIndex;
         // this.radius = radius;
@@ -57,7 +57,7 @@ class BlackHole extends PhysicsEntity{
 
 class Missile extends PhysicsEntity{
     constructor(world, radius, position, velocity, colour){
-        super(world.physics, radius, 10, position, false, velocity);
+        super(world.physics, radius, 1, position, false, velocity);
         this.world = world;
         this.colour = colour;
     }
@@ -294,6 +294,7 @@ export class World{
             {
                 //-160000
                 //-100000 - less seems to be better as this technique doesn't take into account paths
+                console.log(potentials[i] - potentials[j])
                 if (potentials[i] - potentials[j] < -90000) 
                 {
                     return false;

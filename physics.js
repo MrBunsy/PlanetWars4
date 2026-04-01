@@ -28,6 +28,7 @@ export class PhysicsEntity{
 
         this.newPosition = new Vector();
         this.oldPosition = position.copy();
+        this.oldPositions = [];
     }
 
     collisionWith(otherEntity){
@@ -40,7 +41,7 @@ export class PhysicsEngine{
 
     // stealing constants from the old physics engine because it worked pretty well. Gravity was being modelled as coloumbs law
     // so this was k.
-    G = 10;//8990000000;
+    G = 500;//8990000000;
     //F=-bV (drag), friction=b
     friction=5;
 
@@ -53,8 +54,12 @@ export class PhysicsEngine{
         //return speed aproximated by euler integration at time t
         return velocity.add(acceleration.multiply(time))
     }
-
-    update(time_s){
+    /**
+     * 
+     * @param {*} time_s 
+     * @param {*} updateOldPosition if True then put oldPosition to the current position when updating (used to perform multiple physics steps that behave like one)
+     */
+    update(time_s, updateOldPosition){
 
         for(const entity of this.entities){
             if(entity.immobile){
@@ -89,10 +94,11 @@ export class PhysicsEngine{
 
 
 
-            //urgh, sod it. just euler for now and see if it's good enough or not. I'm not sure i actually had runge kutta working properly previously anyway
+            //urgh, sod it. just euler for now and decrease time step. I'm not sure i actually had runge kutta working properly previously anyway
             let acceleration = this.getAccelerationForEntity(entity, entity.velocity, entity.position);
             // keep position same for this loop so we don't affect calculations of other entities
             entity.newPosition = this.eulerIntegration(entity.position, entity.velocity, acceleration, time_s);
+            entity.velocity = entity.newPosition.subtract(entity.position).multiply(1/time_s);
         }
 
         for(let entityIndex=0; entityIndex < this.entities.length; entityIndex++){
@@ -106,7 +112,7 @@ export class PhysicsEngine{
                     this.collision(entity, otherEntity);
                 }
             }
-            if (!entity.immobile){
+            if (!entity.immobile && updateOldPosition){
                 entity.oldPosition = entity.position.copy();
                 entity.position = entity.newPosition;
             }
