@@ -45,7 +45,7 @@ function clickEvent(e) {
     let rect = e.target.getBoundingClientRect();
     let x = e.clientX - rect.left; //x position within the element.
     let y = e.clientY - rect.top;  //y position within the element.
-    console.log("Left? : " + x + " ; Top? : " + y + ".");
+    // console.log("Left? : " + x + " ; Top? : " + y + ".");
     let worldPos = missileViewPort.translateFromPixelToWorld(new Vector(x,y));
 
     for(const ship of world.ships){

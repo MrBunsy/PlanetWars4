@@ -15,9 +15,9 @@ import { PhysicsEngine, PhysicsEntity } from "./physics.js";
 class PlayerShip extends PhysicsEntity{
     colours = [
         "rgb(255,0,0)",
-        "rgb(0,255,0)",
         "rgb(0,0,255)",
         "rgb(255,255,0)",
+        "rgb(0,255,0)",       
         "rgb(255,127,0)",
         
 
@@ -63,7 +63,7 @@ class Missile extends PhysicsEntity{
     }
 
     collisionWith(otherEntity){
-        console.log("COLLISION")
+        // console.log("COLLISION")
         this.physics.removeEntity(this);
         this.physics = null;
         this.world.removeMissile(this)
@@ -293,19 +293,25 @@ export class World{
         let centreOfMass = this.physics.getCentreOfMass();
         console.log("Centre: " + centreOfMass)
 
+        let potentials = []
+
         for (const ship of this.ships) 
         {
             let escapeVelocity = this.physics.getEscapeVelocity(ship.position);
             console.log("Escape velocity for ship " + ship.rgb + " = "+escapeVelocity)
-            if (escapeVelocity < this.maxMissileSpeed*1.5){
+            if (escapeVelocity < this.maxMissileSpeed*1.25){
                 //don't want to be able to just go around the edge
                 return false;
             }
-            if (escapeVelocity > this.maxMissileSpeed*3){
+            if (escapeVelocity > this.maxMissileSpeed*2){
                 //don't want missiles to just be sucked into the centre
                 return false;
             }
+            potentials.push(this.physics.getGravitationalPotential(ship.position));
         }
+
+
+
 
         // //ported from old planet wars when it was modelled as charge rather than gravity. now it's called gravity but it's all the same constants
         // let potentials = [];
@@ -316,19 +322,22 @@ export class World{
         // }
         // //checking voltage between ships, if this is less than -160,000 it seems to be impossible to hit.
         // //TODO check still true with the slightly larger maps and slightly different masses
-        // for (let i = 0; i < potentials.length; i++) 
-        // {
-        //     for (let j = 0; j < potentials.length; j++) 
-        //     {
-        //         //-160000
-        //         //-100000 - less seems to be better as this technique doesn't take into account paths
-        //         console.log(potentials[i] - potentials[j])
-        //         if (potentials[i] - potentials[j] < -90000) 
-        //         {
-        //             return false;
-        //         }
-        //     }
-        // }
+        for (let us = 0; us < potentials.length; us++) 
+        {
+            for (let them = 0; them < potentials.length; them++) 
+            {
+                if(us == them){
+                    continue;
+                }
+                //-160000
+                //-100000 - less seems to be better as this technique doesn't take into account paths
+                console.log(`From ${us} to ${them} = ${potentials[them] - potentials[us]}`)
+                // if (potentials[us] - potentials[them] < -90000) 
+                // {
+                //     return false;
+                // }
+            }
+        }
         
         
         return true;
