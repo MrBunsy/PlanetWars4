@@ -41,7 +41,7 @@ export class PhysicsEngine{
 
     // stealing constants from the old physics engine because it worked pretty well. Gravity was being modelled as coloumbs law
     // so this was k.
-    G = 500;//8990000000;
+    G = 400;//8990000000;
     //F=-bV (drag), friction=b
     friction=5;
 
@@ -203,6 +203,35 @@ export class PhysicsEngine{
     getFrictionForces(velocity)
     {    
         return velocity.multiply(-this.friction)
+    }
+
+    getTotalMass(){
+        let totalMass = 0;
+        for(const entity of this.entities){
+            totalMass += entity.mass;
+        }
+        return totalMass;
+    }
+
+    getEscapeVelocity(atPosition){
+        let totalMass = this.getTotalMass();
+        let centreOfMass = this.getCentreOfMass();
+        let distance = atPosition.subtract(centreOfMass).magnitute();
+        //treating the whole world as a single mass 
+        let v = Math.sqrt(2*this.G*totalMass/distance)
+        return v;
+    }
+
+    getCentreOfMass(){
+        // assuming I've read wikipedia correctly.
+        let centre = new Vector(0,0)
+        let totalMass = 0;
+        for(const entity of this.entities){
+            centre = centre.add(entity.position.multiply(entity.mass))
+            totalMass += entity.mass;
+        }
+        centre = centre.multiply(1/totalMass);
+        return centre;
     }
 
     release(){

@@ -74,7 +74,7 @@ export class World{
     /***
      * Holds the state of the world and will interact with the physics engine to run a single match
      */
-    constructor(players, seed, radius=400, shipRadius=10, missileRadius=1, blackHoleRadius=5, planetMinR=35, planetMaxR=50){
+    constructor(players, seed, radius=400, shipRadius=10, missileRadius=1, blackHoleRadius=5, planetMinR=35, planetMaxR=50, maxMissileSpeed=300){
         
         this.playerCount = players;
         this.random = new SeededRandom(seed);
@@ -84,6 +84,8 @@ export class World{
         this.shipRadius = shipRadius;
         this.missileRadius = missileRadius;
         this.blackHoleRadius = blackHoleRadius;
+
+        this.maxMissileSpeed=maxMissileSpeed;
 
         this.spawnRadius = this.random.nextBetween(radius*0.8, radius*0.95);
         
@@ -286,30 +288,47 @@ export class World{
         other idea - check centre of mass of everything is aproximately central to make it fair
 
         maybe a limit on maximum mass? I want to be able to fire missiles outwards
-        */
+        */ 
 
-        //ported from old planet wars when it was modelled as charge rather than gravity. now it's called gravity but it's all the same constants
-        let potentials = [];
-        //build up array of potentials at each ship
+        let centreOfMass = this.physics.getCentreOfMass();
+        console.log("Centre: " + centreOfMass)
+
         for (const ship of this.ships) 
         {
-            potentials.push(this.physics.getGravitationalPotential(ship.position));
-        }
-        //checking voltage between ships, if this is less than -160,000 it seems to be impossible to hit.
-        //TODO check still true with the slightly larger maps and slightly different masses
-        for (let i = 0; i < potentials.length; i++) 
-        {
-            for (let j = 0; j < potentials.length; j++) 
-            {
-                //-160000
-                //-100000 - less seems to be better as this technique doesn't take into account paths
-                console.log(potentials[i] - potentials[j])
-                if (potentials[i] - potentials[j] < -90000) 
-                {
-                    return false;
-                }
+            let escapeVelocity = this.physics.getEscapeVelocity(ship.position);
+            console.log("Escape velocity for ship " + ship.rgb + " = "+escapeVelocity)
+            if (escapeVelocity < this.maxMissileSpeed*1.5){
+                //don't want to be able to just go around the edge
+                return false;
+            }
+            if (escapeVelocity > this.maxMissileSpeed*3){
+                //don't want missiles to just be sucked into the centre
+                return false;
             }
         }
+
+        // //ported from old planet wars when it was modelled as charge rather than gravity. now it's called gravity but it's all the same constants
+        // let potentials = [];
+        // //build up array of potentials at each ship
+        // for (const ship of this.ships) 
+        // {
+        //     potentials.push(this.physics.getGravitationalPotential(ship.position));
+        // }
+        // //checking voltage between ships, if this is less than -160,000 it seems to be impossible to hit.
+        // //TODO check still true with the slightly larger maps and slightly different masses
+        // for (let i = 0; i < potentials.length; i++) 
+        // {
+        //     for (let j = 0; j < potentials.length; j++) 
+        //     {
+        //         //-160000
+        //         //-100000 - less seems to be better as this technique doesn't take into account paths
+        //         console.log(potentials[i] - potentials[j])
+        //         if (potentials[i] - potentials[j] < -90000) 
+        //         {
+        //             return false;
+        //         }
+        //     }
+        // }
         
         
         return true;

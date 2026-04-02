@@ -21,6 +21,7 @@ let seed = Math.round(Math.random()*10000);//3;//11;
 // seed = 2241;
 // seed = 8655;
 // seed = 4111;
+seed = 2216;
 
 console.log(seed)
 
@@ -48,7 +49,7 @@ function clickEvent(e) {
     let worldPos = missileViewPort.translateFromPixelToWorld(new Vector(x,y));
 
     for(const ship of world.ships){
-        let velocity = worldPos.subtract(ship.position).unit().multiply(250);
+        let velocity = worldPos.subtract(ship.position).unit().multiply(world.maxMissileSpeed);
         world.fireMissile(ship.playerIndex, velocity);
     }
     }

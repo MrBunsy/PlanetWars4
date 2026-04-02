@@ -45,6 +45,10 @@ export class Vector{
     copy(){
         return new Vector(this.x, this.y);
     }
+
+    toString(){
+        return "("+this.x+", "+this.y+")"; 
+    }
 }
 
 export function polar(angle, radius){
