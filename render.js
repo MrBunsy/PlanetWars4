@@ -131,11 +131,12 @@ export class WorldRenderer{
                 }
 
                 for(const ship of world.ships){
-                    let shipPos = viewport.translate(ship.position);
-                    viewport.canvas.beginPath();
-                    viewport.canvas.arc(shipPos.x, shipPos.y, ship.radius*viewport.zoom, 0, Math.PI*2, true)
-                    viewport.canvas.fillStyle=ship.rgb;
-                    viewport.canvas.fill();
+                    // let shipPos = viewport.translate(ship.position);
+                    // viewport.canvas.beginPath();
+                    // viewport.canvas.arc(shipPos.x, shipPos.y, ship.radius*viewport.zoom, 0, Math.PI*2, true)
+                    // viewport.canvas.fillStyle=ship.colour;
+                    // viewport.canvas.fill();
+                    this.drawShip(ship, viewport);
                 }
 
                 for(const planet of world.planets){
@@ -197,5 +198,123 @@ export class WorldRenderer{
                 }
             }
         }
+    }
+
+    /**
+     * Ported from old planet wars, haven't switched everything over to new vectors as it works fine
+     * @param {*} ship 
+     * @param {*} viewport 
+     */
+    drawShip=function(ship, viewport)
+    {
+
+            let r=ship.radius;	
+            // let tempPos=new Array(2);
+            let angle = ship.angle;
+            
+            // tempPos[0]=pos[0]+Math.cos(angle)*r*0.1;
+            // tempPos[1]=pos[1]+Math.sin(angle)*r*0.1;
+            let bodyCentre = ship.position.add(polar(ship.angle, r*0.1));
+            
+            
+            
+            // let belowExhast = [tempPos[0] + Math.cos(angle + Math.PI * 0.9) * r * 0.75, tempPos[1] + Math.sin(angle + Math.PI * 0.9) * r * 0.75];
+            let belowExhast = viewport.translate(bodyCentre.add(polar(angle + Math.PI*0.9, r*0.75)));
+            // let aboveExhast = [tempPos[0] + Math.cos(angle - Math.PI * 0.9) * r * 0.75, tempPos[1] + Math.sin(angle - Math.PI * 0.9) * r * 0.75];
+            let aboveExhast =  viewport.translate(bodyCentre.add(polar(angle - Math.PI*0.9, r*0.75)));
+            
+            let nose =  viewport.translate(bodyCentre.add(polar(angle, r)));//[tempPos[0] + Math.cos(angle) * r, tempPos[1] + Math.sin(angle) * r];
+            
+            bodyCentre =  viewport.translate(bodyCentre);
+            // r = r*viewport.zoom;
+
+            viewport.canvas.strokeStyle = "black";
+            viewport.canvas.lineWidth = r/8
+            viewport.canvas.lineCap = 'round';
+            
+            let bodyFunc = function()
+            {
+                //bottom of body
+                //above exhast
+                viewport.canvas.moveTo((belowExhast.x), (belowExhast.y))
+                
+                viewport.canvas.bezierCurveTo((bodyCentre.x + Math.cos(angle + Math.PI * 0.6) * r*viewport.zoom * 1.3), (bodyCentre.y + Math.sin(angle + Math.PI * 0.6) * r*viewport.zoom * 1.3), (bodyCentre.x + Math.cos(angle + Math.PI * 0.2) * r*viewport.zoom), (bodyCentre.y + Math.sin(angle + Math.PI * 0.2) * r*viewport.zoom), (nose.x), (nose.y));
+                //front
+                viewport.canvas.bezierCurveTo((bodyCentre.x + Math.cos(angle - Math.PI * 0.2) * r*viewport.zoom), (bodyCentre.y + Math.sin(angle - Math.PI * 0.2) * r*viewport.zoom), (bodyCentre.x + Math.cos(angle - Math.PI * 0.6) * r*viewport.zoom * 1.3), (bodyCentre.y + Math.sin(angle - Math.PI * 0.6) * r*viewport.zoom * 1.3), (aboveExhast.x), (aboveExhast.y));
+                viewport.canvas.lineTo((belowExhast.x), (belowExhast.y));
+                
+                //viewport.canvas.bezierCurveTo( bodyCentre.x+Math.cos(angle+Math.PI*0.25)*r , bodyCentre.y+Math.sin(angle+Math.PI*0.25)*r , bodyCentre.x+Math.cos(angle+Math.PI*0.75)*r*2 , bodyCentre.y+Math.sin(angle+Math.PI*0.75)*r*2  , bodyCentre.x+Math.cos(angle+Math.PI*0.9)*r , bodyCentre.y+Math.sin(angle+Math.PI*0.9)*r)
+            }
+            
+            let finFunc = function()
+            {
+                viewport.canvas.moveTo((belowExhast.x + Math.cos(angle) * r * 0.5), (belowExhast.y + Math.sin(angle) * r * 0.5));
+                viewport.canvas.arc((belowExhast.x), (belowExhast.y), r * 0.5*viewport.zoom, angle, angle + Math.PI * 0.8, false)
+                viewport.canvas.lineTo((belowExhast.x), (belowExhast.y));
+                
+                viewport.canvas.moveTo((aboveExhast.x + Math.cos(angle) * r * 0.5), (aboveExhast.y + Math.sin(angle) * r * 0.5));
+                viewport.canvas.arc((aboveExhast.x), (aboveExhast.y), r * 0.5*viewport.zoom, angle, angle - Math.PI * 0.8, true)
+                viewport.canvas.lineTo((aboveExhast.x), (aboveExhast.y));
+            }
+            
+            let flame1Func = function()
+            {
+                viewport.canvas.moveTo((belowExhast.x), (belowExhast.y));
+                viewport.canvas.quadraticCurveTo((bodyCentre.x + Math.cos(angle + Math.PI * 0.9) * r), (bodyCentre.y + Math.sin(angle + Math.PI * 0.9) * r), (bodyCentre.x + Math.cos(angle + Math.PI) * r * 1.2), (bodyCentre.y + Math.sin(angle + Math.PI) * r * 1.2))
+                viewport.canvas.quadraticCurveTo((bodyCentre.x + Math.cos(angle - Math.PI * 0.9) * r), (bodyCentre.y + Math.sin(angle - Math.PI * 0.9) * r), (aboveExhast.x), (aboveExhast.y))
+            }
+            
+            let flame2Func = function()
+            {
+                viewport.canvas.moveTo((belowExhast.x + Math.cos(angle - Math.PI / 2) * r * 0.1), (belowExhast.y + Math.sin(angle - Math.PI / 2) * r * 0.1));
+                viewport.canvas.quadraticCurveTo((bodyCentre.x + Math.cos(angle + Math.PI * 0.9) * r * 0.9), (bodyCentre.y + Math.sin(angle + Math.PI * 0.9) * r * 0.9), (bodyCentre.x + Math.cos(angle + Math.PI) * r * 1.1), (bodyCentre.y + Math.sin(angle + Math.PI) * r * 1.1))
+                viewport.canvas.quadraticCurveTo((bodyCentre.x + Math.cos(angle - Math.PI * 0.9) * r * 0.9), (bodyCentre.y + Math.sin(angle - Math.PI * 0.9) * r * 0.9), (aboveExhast.x + Math.cos(angle + Math.PI / 2) * r * 0.1), (aboveExhast.y + Math.sin(angle + Math.PI / 2) * r * 0.1))
+            }
+            
+            viewport.canvas.fillStyle = ship.colour;
+            viewport.canvas.beginPath()
+            finFunc();
+            viewport.canvas.fill();
+            
+            viewport.canvas.beginPath()
+            finFunc();
+            viewport.canvas.stroke();
+            
+            viewport.canvas.fillStyle = "rgb(255,255,0)";
+            viewport.canvas.beginPath()
+            flame1Func();
+            viewport.canvas.fill();
+            
+            viewport.canvas.fillStyle = "rgb(255,128,0)";
+            viewport.canvas.beginPath()
+            flame2Func();
+            viewport.canvas.fill();
+            
+            
+            viewport.canvas.fillStyle = ship.colour;
+            viewport.canvas.beginPath();
+            bodyFunc();
+            viewport.canvas.fill()
+            
+            
+            viewport.canvas.beginPath();
+            bodyFunc();
+            viewport.canvas.stroke();
+            
+            viewport.canvas.fillStyle = "rgb(132,132,0)"
+            viewport.canvas.beginPath();
+            viewport.canvas.arc((bodyCentre.x + Math.cos(angle) * r * 0.3), (bodyCentre.y + Math.sin(angle) * r * 0.3), r * 0.2*viewport.zoom, 0, Math.PI * 2, false);
+            
+            viewport.canvas.fill();
+            
+            viewport.canvas.beginPath();
+            //viewport.canvas.moveTo(bodyCentre.x+Math.cos(angle)*r*0.3 + r*0.2 , bodyCentre.y+Math.sin(angle)*r*0.3)
+            
+            viewport.canvas.arc((bodyCentre.x + Math.cos(angle) * r * 0.3), (bodyCentre.y + Math.sin(angle) * r * 0.3), r * 0.2*viewport.zoom, 0, Math.PI * 2, false);
+            
+            viewport.canvas.stroke();
+
+                
+        
     }
 }

@@ -31,7 +31,8 @@ class PlayerShip extends PhysicsEntity{
         this.world = world;
         this.playerIndex = playerIndex;
         // this.radius = radius;
-        this.rgb = this.colours[playerIndex];
+        this.colour = this.colours[playerIndex];
+        this.angle = this.position.angleTo(this.world.centre);
     }
 
 //     fireMissile(physics, direction){
@@ -78,7 +79,7 @@ export class World{
     /***
      * Holds the state of the world and will interact with the physics engine to run a single match
      */
-    constructor(players, seed, radius=400, shipRadius=10, missileRadius=1, blackHoleRadius=5, planetMinR=35, planetMaxR=50, maxMissileSpeed=400){
+    constructor(players, seed, radius=400, shipRadius=10, missileRadius=1, blackHoleRadius=5, planetMinR=20, planetMaxR=50, maxMissileSpeed=400){
         
         this.playerCount = players;
         this.random = new SeededRandom(seed);
@@ -102,6 +103,7 @@ export class World{
         this.planets = [];
 
         this.physics = new PhysicsEngine();
+        this.centre = new Vector(0,0);
 
         this.missiles = []
         
@@ -111,7 +113,7 @@ export class World{
 
     fireMissile(playerIndex, velocity){
         let position = this.ships[playerIndex].position.add(velocity.unit().multiply(this.shipRadius + this.missileRadius + 1))
-        let missile = new Missile(this, this.missileRadius,position, velocity, this.ships[playerIndex].rgb);
+        let missile = new Missile(this, this.missileRadius,position, velocity, this.ships[playerIndex].colour);
         this.missiles.push(missile)
         this.physics.addEntity(missile)
 
@@ -129,7 +131,8 @@ export class World{
             this.physics = new PhysicsEngine();
             this.generateShips();
             this.generatePlanets(this.playerCount + 3);
-            this.generateBlackholes();
+            let blackholeCount = this.random.next() < 0.2 ? 1 : 0;
+            this.generateBlackholes(blackholeCount);
 
             this.physics.addEntities(this.ships);
             this.physics.addEntities(this.planets);
@@ -159,7 +162,12 @@ export class World{
 
         for(let playerIndex =0; playerIndex< toPlonk ; playerIndex++){
             let nextPlayerIndex = (playerIndex+1)%this.playerCount;
-            let betweenPlayers = this.ships[playerIndex].position.average(this.ships[nextPlayerIndex].position)
+            let betweenPlayers = this.ships[playerIndex].position.average(this.ships[nextPlayerIndex].position);
+            let towardsCentre = this.random.next()*this.radius*0.2;
+            //bring towards the centre by a small amount
+            betweenPlayers = betweenPlayers.add(new Vector(0,0).subtract(betweenPlayers).unit().multiply(towardsCentre));
+
+
             this.planets=this.planets.concat(this.plonkPlanet(betweenPlayers, 1));
         }
 
@@ -308,15 +316,15 @@ export class World{
         for (const ship of this.ships) 
         {
             let escapeVelocity = this.physics.getEscapeVelocity(ship.position);
-            // console.log("Escape velocity for ship " + ship.rgb + " = "+escapeVelocity)
+            // console.log("Escape velocity for ship " + ship.colour + " = "+escapeVelocity)
             if (escapeVelocity < this.maxMissileSpeed*1.25){
                 //don't want to be able to just go around the edge
-                 console.log(`Escape velocity too low for ship ${ship.rgb} = ${escapeVelocity}`)
+                 console.log(`Escape velocity too low for ship ${ship.colour} = ${escapeVelocity}`)
                 return false;
             }
             if (escapeVelocity > this.maxMissileSpeed*2){
                 //don't want missiles to just be sucked into the centre
-                console.log(`Escape velocity too high for ship ${ship.rgb} = ${escapeVelocity}`)
+                console.log(`Escape velocity too high for ship ${ship.colour} = ${escapeVelocity}`)
                 return false;
             }
             potentials.push(this.physics.getGravitationalPotential(ship.position));
