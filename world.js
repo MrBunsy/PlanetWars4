@@ -18,7 +18,11 @@ class PlayerShip extends PhysicsEntity{
         "rgb(0,0,255)",
         "rgb(255,255,0)",
         "rgb(0,255,0)",       
+        "rgb(127,0,200)",
         "rgb(255,127,0)",
+        "rgb(64, 224, 208)",
+        "rgb(255,127,255)",
+        "rgb(150, 75, 0)",
         
 
     ]
@@ -37,7 +41,7 @@ class PlayerShip extends PhysicsEntity{
 
 class Planet extends PhysicsEntity{
     constructor(world, position, density, radius, colour, ring=false, angle=0){
-        let mass = 0.5 * Math.pow(radius, 3) * density;
+        let mass = 0.3 * Math.pow(radius, 3) * density;
         super(world.physics, radius, mass, position, true);
         this.world = world;
         this.density = density;
@@ -74,7 +78,7 @@ export class World{
     /***
      * Holds the state of the world and will interact with the physics engine to run a single match
      */
-    constructor(players, seed, radius=400, shipRadius=10, missileRadius=1, blackHoleRadius=5, planetMinR=35, planetMaxR=50, maxMissileSpeed=300){
+    constructor(players, seed, radius=400, shipRadius=10, missileRadius=1, blackHoleRadius=5, planetMinR=35, planetMaxR=50, maxMissileSpeed=400){
         
         this.playerCount = players;
         this.random = new SeededRandom(seed);
@@ -87,7 +91,7 @@ export class World{
 
         this.maxMissileSpeed=maxMissileSpeed;
 
-        this.spawnRadius = this.random.nextBetween(radius*0.8, radius*0.95);
+        this.spawnRadius = this.random.nextBetween(radius*0.9, radius*0.95);
         
         this.planetMinR = planetMinR;
         this.planetMaxR = planetMaxR;
@@ -291,20 +295,28 @@ export class World{
         */ 
 
         let centreOfMass = this.physics.getCentreOfMass();
-        console.log("Centre: " + centreOfMass)
+        // console.log("Centre: " + centreOfMass)
+
+        if (centreOfMass.magnitute > this.radius*0.15){
+            //too uneven
+            console.log(`Centre of mass too off centre: ${centreOfMass}`)
+            return false;
+        }
 
         let potentials = []
 
         for (const ship of this.ships) 
         {
             let escapeVelocity = this.physics.getEscapeVelocity(ship.position);
-            console.log("Escape velocity for ship " + ship.rgb + " = "+escapeVelocity)
+            // console.log("Escape velocity for ship " + ship.rgb + " = "+escapeVelocity)
             if (escapeVelocity < this.maxMissileSpeed*1.25){
                 //don't want to be able to just go around the edge
+                 console.log(`Escape velocity too low for ship ${ship.rgb} = ${escapeVelocity}`)
                 return false;
             }
             if (escapeVelocity > this.maxMissileSpeed*2){
                 //don't want missiles to just be sucked into the centre
+                console.log(`Escape velocity too high for ship ${ship.rgb} = ${escapeVelocity}`)
                 return false;
             }
             potentials.push(this.physics.getGravitationalPotential(ship.position));
@@ -329,13 +341,19 @@ export class World{
                 if(us == them){
                     continue;
                 }
-                //-160000
-                //-100000 - less seems to be better as this technique doesn't take into account paths
-                console.log(`From ${us} to ${them} = ${potentials[them] - potentials[us]}`)
-                // if (potentials[us] - potentials[them] < -90000) 
-                // {
-                //     return false;
-                // }
+                // console.log(`From ${us} to ${them} = ${potentials[them] - potentials[us]}`)
+                //not multipling by mass because the potentials were and they will cancel out
+                let missileKineticEnergy = 0.5*Math.pow(this.maxMissileSpeed,2);
+
+                // I think I've got this -ve somehow, still thinking. some experiments have shown that a -ve value here doesn't result in a missile being
+                // able to reach another ship
+                // console.log(`kinetic energy/mass for missile = ${missileKineticEnergy}`)
+                let maxDifference = missileKineticEnergy*0.2;
+                if (potentials[them] - potentials[us] > maxDifference) 
+                {
+                    console.log(`From ${us} to ${them} = ${potentials[them] - potentials[us]} > ${maxDifference}`)
+                    return false;
+                }
             }
         }
         

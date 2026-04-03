@@ -25,12 +25,13 @@ seed = 2216;
 
 console.log(seed)
 
-let world = new World(4, seed)
+let world = new World(6, seed, 500)
 let renderer = new WorldRenderer(seed)
 
-renderer.addBackgroundViewport(new Viewport(new Vector(0,0), 1.0, document.getElementById("planet_wars0").getContext("2d"), 800, 800))
-let missileTrailsViewPort = new Viewport(new Vector(0,0), 1.0, document.getElementById("planet_wars1").getContext("2d"), 800, 800);
-let missileViewPort = new Viewport(new Vector(0,0), 1.0, document.getElementById("planet_wars2").getContext("2d"), 800, 800);
+let zoom = 400/world.radius
+renderer.addBackgroundViewport(new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars0").getContext("2d"), 800, 800))
+let missileTrailsViewPort = new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars1").getContext("2d"), 800, 800);
+let missileViewPort = new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars2").getContext("2d"), 800, 800);
 renderer.addLiveViewport(missileViewPort);
 renderer.addTrailsViewport(missileTrailsViewPort)
 

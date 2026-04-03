@@ -153,6 +153,7 @@ export class PhysicsEngine{
 
     /**
      * Really getting electric potential as that was what was modelled before
+     * multiply this by the mass of the object at position and it is real gravitational potential energy
      * @param {*} position 
      */
     getGravitationalPotential(position){
@@ -163,7 +164,7 @@ export class PhysicsEngine{
             let r=position.subtract(entity.position).magnitute()
             if (r!=0){
                 //find the electric potential at a point
-                potential+=this.G * entity.mass / r;
+                potential+=-this.G * entity.mass / r;
             }
             
         }
