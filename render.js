@@ -146,15 +146,22 @@ export class WorldRenderer{
                     let grad =viewport.canvas.createRadialGradient(planetTopLeft.x,planetTopLeft.y, 0 ,planetPos.x, planetPos.y, planet.radius*2* viewport.zoom);
 	
 					grad.addColorStop(0, planet.colour);
-					//grad.addColorStop(0.8, Render.colourToRGB(Render.colourChangeBy(planet_wars.objects[i].colour,-192)));
 					grad.addColorStop(0.9, "rgb(0,0,0)");
+
+                    if (planet.ring)
+                    {
+                        this.drawRings(planet, viewport);
+                    }
 
                     viewport.canvas.beginPath();
                     viewport.canvas.fillStyle = grad;
-                    // viewport.canvas.moveTo(planetPos.x, planetPos.y);
-                    // viewport.canvas.arc((planet_wars.objects[i].pos[0] - viewport.x) * viewport.zoom, (planet_wars.objects[i].pos[1] - viewport.y) * viewport.zoom, planet_wars.objects[i].r * viewport.zoom, 0, Math.PI * 2, true);
                     viewport.canvas.arc(planetPos.x, planetPos.y , planet.radius*viewport.zoom , 0 , Math.PI*2 , true);
                     viewport.canvas.fill();
+
+                    if (planet.ring)
+                    {
+                        this.drawRings(planet, viewport, false);
+                    }
 				}
 				
 				
@@ -316,5 +323,61 @@ export class WorldRenderer{
 
                 
         
+    }
+
+    
+    drawRings(planet, viewport, bottom=true, ringColour='rgb(192,192,192)')
+    {
+        let radius=planet.radius;
+        let bigRadius=radius*1.25
+        let angle=planet.angle;
+
+        let left = planet.position.add(polar(angle + Math.PI, bigRadius));
+        let leftPixels = viewport.translate(left);
+
+        let right = planet.position.add(polar(angle, bigRadius));
+        let rightPixels = viewport.translate(right);
+
+        let leftUpper = left.add(polar(angle - Math.PI/2, radius));
+        let leftUpperPixels = viewport.translate(leftUpper);
+
+        let leftDown = left.add(polar(angle + Math.PI/2, radius));
+        let leftDownPixels = viewport.translate(leftDown);
+
+        let rightUpper = right.add(polar(angle - Math.PI/2, radius));
+        let rightUpperPixels = viewport.translate(rightUpper);
+
+        let rightDown = right.add(polar(angle + Math.PI/2, radius));
+        let rightDownPixels = viewport.translate(rightDown);
+        
+        //ignoring angle, for the gradient
+        let topLeftPixel = viewport.translate(planet.position.add(new Vector(-bigRadius, -bigRadius)));
+        let bottomRightPixel = viewport.translate(planet.position.add(new Vector(bigRadius, bigRadius)));
+
+        let grad2 = viewport.canvas.createLinearGradient(topLeftPixel.x , topLeftPixel.y , bottomRightPixel.x , bottomRightPixel.y);
+        grad2.addColorStop(0, ringColour);
+        grad2.addColorStop(1,'rgb(0,0,0)');
+        
+        viewport.canvas.beginPath();
+        viewport.canvas.moveTo(leftPixels.x, leftPixels.y);
+        viewport.canvas.strokeStyle=grad2
+        viewport.canvas.lineCap='round';
+
+        if (bottom){
+            //drawn before the planet
+
+            viewport.canvas.lineWidth=planet.radius*viewport.zoom/5;
+            
+            
+            viewport.canvas.bezierCurveTo(leftUpperPixels.x, leftUpperPixels.y, rightUpperPixels.x, rightUpperPixels.y , rightPixels.x , rightPixels.y);
+            
+        }else{
+            //drawn on top of the planet
+            
+            viewport.canvas.lineWidth=planet.r*viewport.zoom/5;
+            viewport.canvas.bezierCurveTo(leftDownPixels.x, leftDownPixels.y, rightDownPixels.x, rightDownPixels.y, rightPixels.x , rightPixels.y);
+        }
+
+        viewport.canvas.stroke();
     }
 }

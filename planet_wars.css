@@ -3,5 +3,6 @@
 }
 
 .planet_wars canvas{
-    border-radius: 50%;position:absolute; top:0; left:0;
+    /* border-radius: 50%; */
+    position:absolute; top:0; left:0;
 }
