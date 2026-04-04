@@ -40,6 +40,7 @@ renderer.renderBackground(world)
 
 
 // world.fireMissile(0, new Vector(-10,-10)); 
+let socket = new WebSocket("./ws");
 
 
 function clickEvent(e) {
@@ -53,6 +54,9 @@ function clickEvent(e) {
     for(const ship of world.ships){
         let velocity = worldPos.subtract(ship.position).unit().multiply(world.maxMissileSpeed);
         world.fireMissile(ship.playerIndex, velocity);
+
+        let test = {"fire": velocity}
+        socket.send(JSON.stringify(test))
     }
     }
 
@@ -74,3 +78,11 @@ function update(){
 
 setInterval(update.bind(world.physics), delay_ms);
 
+
+socket.addEventListener("open", (event) => {
+  socket.send("Hello Server!");
+});
+
+socket.addEventListener("message", (event) => {
+  console.log("Message from server ", event.data);
+});
