@@ -325,7 +325,13 @@ export class WorldRenderer{
         
     }
 
-    
+    /**
+     * Ported from planet wars 2, which copied it from the original. Updated to use vectors and a bit of tidy up, but it's the same old old logic!
+     * @param {*} planet 
+     * @param {*} viewport 
+     * @param {*} bottom 
+     * @param {*} ringColour 
+     */
     drawRings(planet, viewport, bottom=true, ringColour='rgb(192,192,192)')
     {
         let radius=planet.radius;
