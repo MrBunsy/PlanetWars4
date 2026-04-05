@@ -5,6 +5,12 @@ export class Vector{
         this.y = y
     }
 
+    fromJSON(jsonBlob){
+        if(jsonBlob.hasOwnProperty("x") && jsonBlob.hasOwnProperty("y")){
+            return new Vector(parseFloat(jsonBlob["x"]), parseFloat(jsonBlob["y"]))
+        }
+    }
+
     add(b){
         return new Vector(this.x + b.x, this.y + b.y)
     }

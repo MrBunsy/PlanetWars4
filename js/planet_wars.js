@@ -23,6 +23,7 @@ let seed = Math.round(Math.random()*10000);//3;//11;
 // seed = 4111;
 // seed = 2216;
 // seed = 5532;
+seed = 2;
 
 console.log(seed)
 
@@ -40,7 +41,7 @@ renderer.renderBackground(world)
 
 
 // world.fireMissile(0, new Vector(-10,-10)); 
-let socket = new WebSocket("./ws");
+let socket = new WebSocket("https://planetwars.lukewallin.co.uk/ws");
 
 
 function clickEvent(e) {
@@ -53,9 +54,9 @@ function clickEvent(e) {
 
     for(const ship of world.ships){
         let velocity = worldPos.subtract(ship.position).unit().multiply(world.maxMissileSpeed);
-        world.fireMissile(ship.playerIndex, velocity);
+        // world.fireMissile(ship.playerIndex, velocity);
 
-        let test = {"fire": velocity}
+        let test = {"fire": {"velocity":velocity, "player": ship.playerIndex}, }
         socket.send(JSON.stringify(test))
     }
     }
@@ -79,10 +80,18 @@ function update(){
 setInterval(update.bind(world.physics), delay_ms);
 
 
-socket.addEventListener("open", (event) => {
-  socket.send("Hello Server!");
-});
+// socket.addEventListener("open", (event) => {
+//   socket.send("Hello Server!");
+// });
 
 socket.addEventListener("message", (event) => {
   console.log("Message from server ", event.data);
+  let message = JSON.parse(event.data);
+  if(message.hasOwnProperty("fire")){
+    let fire = message["fire"];
+    if (fire.hasOwnProperty("velocity") && fire.hasOwnProperty("player")){
+        let velocity = new Vector().fromJSON(fire["velocity"])
+        world.fireMissile(fire["player"], velocity);
+    }
+  }
 });
