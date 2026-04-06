@@ -59,7 +59,7 @@ export class PhysicsEngine{
      * @param {*} time_s 
      * @param {*} updateOldPosition if True then put oldPosition to the current position when updating (used to perform multiple physics steps that behave like one)
      */
-    update(time_s, updateOldPosition){
+    update(time_s, updateOldPosition=false){
 
         for(const entity of this.entities){
             if(entity.immobile){
@@ -112,10 +112,15 @@ export class PhysicsEngine{
                     this.collision(entity, otherEntity);
                 }
             }
+
             if (!entity.immobile && updateOldPosition){
-                entity.oldPosition = entity.position.copy();
-                entity.position = entity.newPosition;
+                
+                entity.oldPositions = [entity.position.copy()];
             }
+            entity.oldPosition = entity.position.copy();
+            entity.oldPositions.push(entity.newPosition.copy());
+            entity.position = entity.newPosition;
+            // }
         }
 
     }

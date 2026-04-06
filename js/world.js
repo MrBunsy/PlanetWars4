@@ -79,7 +79,7 @@ export class World{
     /***
      * Holds the state of the world and will interact with the physics engine to run a single match
      */
-    constructor(players, seed, radius=400, shipRadius=10, missileRadius=1, blackHoleRadius=5, planetMinR=20, planetMaxR=50, maxMissileSpeed=400){
+    constructor(players, seed, radius=400, shipRadius=10, missileRadius=1, blackHoleRadius=5, planetMinR=20, planetMaxR=50, maxMissileSpeed=100){
         
         this.playerCount = players;
         this.random = new SeededRandom(seed);

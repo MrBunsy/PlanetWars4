@@ -176,16 +176,22 @@ export class WorldRenderer{
         for(const viewport of this.trailsViewports){
             if(viewport.enabled){
                 for(const missile of world.missiles){
-                    let oldPosition = viewport.translate(missile.oldPosition);
-                    let newPosition = viewport.translate(missile.position);
-
-                    viewport.canvas.beginPath();
-                    viewport.canvas.lineWidth=2;
-                    viewport.canvas.lineCap="round";
-                    viewport.canvas.strokeStyle=missile.colour;
-                    viewport.canvas.moveTo(oldPosition.x, oldPosition.y);
-                    viewport.canvas.lineTo(newPosition.x, newPosition.y);
-                    viewport.canvas.stroke();
+                    // let oldPosition = viewport.translate(missile.oldPosition);
+                    // let newPosition = viewport.translate(missile.position);
+                    if(missile.oldPositions.length <= 1){
+                        continue;
+                    }
+                    for(let i=1; i< missile.oldPositions.length; i++){
+                        const oldPosition = viewport.translate(missile.oldPositions[i-1]);
+                        const newPosition = viewport.translate(missile.oldPositions[i]);
+                        viewport.canvas.beginPath();
+                        viewport.canvas.lineWidth=2;
+                        viewport.canvas.lineCap="round";
+                        viewport.canvas.strokeStyle=missile.colour;
+                        viewport.canvas.moveTo(oldPosition.x, oldPosition.y);
+                        viewport.canvas.lineTo(newPosition.x, newPosition.y);
+                        viewport.canvas.stroke();
+                    }
 
                 }
             }

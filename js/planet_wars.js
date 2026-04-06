@@ -3,7 +3,7 @@
 import {World} from './world.js'
 import {WorldRenderer, Viewport} from './render.js'
 import {Vector} from './geometry.js'
-
+import { PlanetWarsSocketClient } from './multiplayer.js';
 /**
  * 
  * vague overall plan: a World will hold a physics engine object to simulate
@@ -16,82 +16,23 @@ import {Vector} from './geometry.js'
  * 
  */
 
-let seed = Math.round(Math.random()*10000);//3;//11;
-
-// seed = 2241;
-// seed = 8655;
-// seed = 4111;
-// seed = 2216;
-// seed = 5532;
-seed = 2;
-
-console.log(seed)
-
-let world = new World(6, seed, 500)
-let renderer = new WorldRenderer(seed)
-
-let zoom = 400/world.radius
-renderer.addBackgroundViewport(new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars0").getContext("2d"), 800, 800))
-let missileTrailsViewPort = new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars1").getContext("2d"), 800, 800);
-let missileViewPort = new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars2").getContext("2d"), 800, 800);
-renderer.addLiveViewport(missileViewPort);
-renderer.addTrailsViewport(missileTrailsViewPort)
-
-renderer.renderBackground(world)
-
-
 // world.fireMissile(0, new Vector(-10,-10)); 
-let socket = new WebSocket("https://planetwars.lukewallin.co.uk/ws");
+let socket = new WebSocket("/ws");
 
-
-function clickEvent(e) {
-      // e = Mouse click event.
-    let rect = e.target.getBoundingClientRect();
-    let x = e.clientX - rect.left; //x position within the element.
-    let y = e.clientY - rect.top;  //y position within the element.
-    // console.log("Left? : " + x + " ; Top? : " + y + ".");
-    let worldPos = missileViewPort.translateFromPixelToWorld(new Vector(x,y));
-
-    for(const ship of world.ships){
-        let velocity = worldPos.subtract(ship.position).unit().multiply(world.maxMissileSpeed);
-        // world.fireMissile(ship.playerIndex, velocity);
-
-        let test = {"fire": {"velocity":velocity, "player": ship.playerIndex}, }
-        socket.send(JSON.stringify(test))
-    }
-    }
-
-//https://stackoverflow.com/a/42111623
-document.getElementById('planet_wars2').onclick = clickEvent;
-
-
-let delay_ms = 10;
-
-let physicsSteps = 10;
-
-function update(){
-    for(let i =0; i<physicsSteps;i++){
-        world.physics.update((1/physicsSteps)*delay_ms/1000, i==0);
-    }
-    renderer.renderLive(world);
-    renderer.renderTrails(world);
+let lobby = new PlanetWarsSocketClient(socket, (newStateObject) =>{
+    //um, I'm not sure why I created this callback now.
+    console.log("state changed")
 }
+);
 
-setInterval(update.bind(world.physics), delay_ms);
-
-
-// socket.addEventListener("open", (event) => {
-//   socket.send("Hello Server!");
+// socket.addEventListener("message", (event) => {
+//   console.log("Message from server ", event.data);
+//   let message = JSON.parse(event.data);
+//   if(message.hasOwnProperty("fire")){
+//     let fire = message["fire"];
+//     if (fire.hasOwnProperty("velocity") && fire.hasOwnProperty("player")){
+//         let velocity = new Vector().fromJSON(fire["velocity"])
+//         world.fireMissile(fire["player"], velocity);
+//     }
+//   }
 // });
-
-socket.addEventListener("message", (event) => {
-  console.log("Message from server ", event.data);
-  let message = JSON.parse(event.data);
-  if(message.hasOwnProperty("fire")){
-    let fire = message["fire"];
-    if (fire.hasOwnProperty("velocity") && fire.hasOwnProperty("player")){
-        let velocity = new Vector().fromJSON(fire["velocity"])
-        world.fireMissile(fire["player"], velocity);
-    }
-  }
-});
