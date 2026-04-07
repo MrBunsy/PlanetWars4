@@ -34,7 +34,7 @@ class Message{
         this.type = this.json["type"];
     }
 
-    getProperty(propertyName, propertyType){
+    getProperty(propertyName){
         if(!(propertyName in this.json)){
             throw new Error(`Message does not have property ${propertyName}`);
         }
@@ -52,8 +52,9 @@ class RoomInfoMessage extends Message{
             throw new Error("Message not RoomInfo");
         }
 
-        this.name = String(this.getProperty("name", "string"));
+        this.name = String(this.getProperty("name"));
         this.players = this.getProperty("players");
+        this.private = this.getProperty("private")
         if(!Array.isArray(this.players)){
             throw new Error ("players is not an array");
         }
@@ -63,8 +64,10 @@ class RoomInfoMessage extends Message{
 
 Message.mapping = {"RoomInfo": RoomInfoMessage};
 
-
-class SocketCommsState{
+/**
+ * Base class for all the objects which control game state adn respond to messages
+ */
+class MessageResponder{
 
     constructor(websocket, stateChangeCallback){
         this.websocket = websocket;
@@ -78,40 +81,45 @@ class SocketCommsState{
     cleanUp(){
         this.stateChangeCallback = null;
     }
+
+    send(messageObject){
+        this.websocket.send(JSON.stringify(messageObject));
+    }
 }
 
 
 export class PlanetWarsSocketClient{
     constructor(websocket){
         this.websocket = websocket;
-        this.stateProcessor = new MasterLobby(websocket, (newStateProcessor) => {
-            this.stateProcessor.cleanUp();
-            this.stateProcessor = newStateProcessor;
+        this.messageResponder = new MasterLobby(websocket, (newmessageResponder) => {
+            this.messageResponder.cleanUp();
+            this.messageResponder = newmessageResponder;
         })
         this.websocket.addEventListener("message", (event) => {
             console.log("Message from server ", event.data);
             let message = Message.processMessage(JSON.parse(event.data));
 
-            this.stateProcessor.processMessage(message);
+            this.messageResponder.processMessage(message);
 
             
         });
     }
+
+    
 }
 
 /**
  * Not going to be very MVC, view logic is going to be a bit intermingled with main logic.
  * Wondering if I should switch to something like angular, or how easy it would be to rig up something that can read all the state to update the UI
+ * separate object which controls UI from the state of these objects?
  * for now, hacky hacky with lots of document.getElementById. will think about doing properly later
  */
-class MasterLobby extends SocketCommsState{
+class MasterLobby extends MessageResponder{
     constructor(websocket, stateChangeCallback){
         super(websocket, stateChangeCallback)
 
         this.mainDiv = document.getElementById('planet_wars_master_lobby');
         this.mainDiv.classList.remove("hidden");
-
-        this.stateProcessor
 
         
         document.getElementById("planet_wars_join_room_form").onsubmit = (event) =>{
@@ -120,7 +128,7 @@ class MasterLobby extends SocketCommsState{
                 "type": "JoinRoom",
                 "room": event.target.elements.roomName.value
             }
-            this.websocket.send(JSON.stringify(message))
+            this.send(message);
             return false;
         }
         document.getElementById("planet_wars_create_room_form").onsubmit = (event) =>{
@@ -129,8 +137,16 @@ class MasterLobby extends SocketCommsState{
                 "type": "CreateRoom",
                 "private": event.target.elements.private.value == "on"
             }
-            this.websocket.send(JSON.stringify(message))
+            this.send(message);
             return false;
+        }
+        document.getElementById("planet_wars_player_name").onkeyup = (event) =>{
+            console.log(event);
+            let message = {
+                "type": "ChangeName",
+                "name": document.getElementById("planet_wars_player_name").value
+            }
+            this.send(message);
         }
     }
 
@@ -155,12 +171,14 @@ class MasterLobby extends SocketCommsState{
 }
 
 
-class Room extends SocketCommsState{
+class Room extends MessageResponder{
     constructor(websocket, stateChangeCallback, roomMessage){
         super(websocket, stateChangeCallback)
         this.roomInfo = roomMessage;
         this.mainDiv = document.getElementById("planet_wars_room");
-        this.nameSpan = document.getElementById("planet_wars_room_name");
+        this.nameSpan = this.mainDiv.querySelector("#room_name");
+        this.privateSpan = this.mainDiv.querySelector("#room_private");
+        this.playersList = this.mainDiv.querySelector("#players")
         this.processRoomInfo(this.roomInfo);
 
         this.mainDiv.classList.remove("hidden");
@@ -179,6 +197,14 @@ class Room extends SocketCommsState{
     processRoomInfo(roomInfo){
         this.roomInfo = roomInfo;
         this.nameSpan.innerHTML = this.roomInfo["name"];
+        this.privateSpan.innerHTML = "";
+        if (roomInfo["private"]){
+            this.privateSpan.innerHTML = " (private)";
+        }
+        this.playersList.innerHTML = "";
+        for(const player of roomInfo["players"]){
+            this.playersList.innerHTML += `<li>${player}</li>`;
+        }
 
     }
 
