@@ -5,6 +5,7 @@ import html
 import json
 import string
 import random
+import re
 
 import nh3
 ''''
@@ -46,12 +47,14 @@ class Message:
             raise SyntaxError(f"No {property_name} in message")
 
         stringy = nh3.clean(str(self.json[property_name]))
+        pattern = re.compile('[\W_]+')
+        stringy = pattern.sub('', stringy)
         if len(stringy) > max_length:
             stringy = stringy[:max_length]
         return stringy
 
     @staticmethod
-    def process_message(json_blob):
+    def process_json(json_blob):
         base_message = Message(json_blob)
         message = Message.mapping[base_message.type](json_blob)
         return message
@@ -71,9 +74,32 @@ class JoinRoomMessage(Message):
         super().__init__(json_blob)
         self.room = self.process_string("room", max_length=ROOM_NAME_LENGTH)
 
+class StartGameMessage(Message):
+    '''
+    Recived from client with game settings to trigger game start.
+    broadcast back to clients with more details to start the game
+    '''
+    def __init__(self, json_blob):
+        super().__init__(json_blob)
+        # there aren't any game settings yet
+        # these will be sent back to clients
+        self.seed = random.randint(0, 999999)
+        self.players = []
+
+    def set_players(self, players):
+        self.players = players
+
+    def to_json(self):
+        return {
+            "type": "StartGame",
+            "seed" : self.seed,
+            "players": self.players
+        }
+
 Message.mapping["CreateRoom"]= CreateRoomMessage
 Message.mapping["ChangeName"]= ChangeNameMessage
 Message.mapping["JoinRoom"]= JoinRoomMessage
+Message.mapping["StartGame"]= JoinRoomMessage
 class Client:
 
 
@@ -88,10 +114,11 @@ class Client:
         # self.message_processor.cleanup()
         self.message_processor = new_message_processor
 
-    def process_message(self, message):
-        self.message_processor.process_message(message, self)
+    async def process_message(self, message):
+        print(f"client processing message type: {message.type}")
+        await self.message_processor.process_message(message, self)
 
-    def cleanup(self):
+    async def cleanup(self):
         self.message_processor.remove_client(self)
 
 
@@ -104,13 +131,13 @@ class MessageResponder:
         self.clients = clients
         self.handler = handler
 
-    def process_message(self, message, from_client):
+    async def process_message(self, message, from_client):
         raise NotImplementedError("implement in subclasses")
 
-    def cleanup(self):
+    async def cleanup(self):
         self.clients = set()
         # self.handler = None
-    def remove_client(self, client):
+    async def remove_client(self, client):
         if client in self.clients:
             self.clients.remove(client)
 
@@ -122,39 +149,55 @@ class MessageResponder:
 
 
 class Room(MessageResponder):
-    def __init__(self,clients, handler, name, private=True):
-        super().__init__(clients, handler)
+    def __init__(self, host, handler, name, private=True):
+        super().__init__([host], handler)
+        print(f"Created room {name}")
+        self.host_index = 0
+        self.host = host
         self.name = name
         # self.clients = []
         self.private = private
-        self.send_info()
-    def add_client(self, client):
+        # await self.send_info()
+    async def add_client(self, client):
         self.clients.append(client)
-        self.send_info()
+        await self.send_info()
 
 
-    def send_info(self):
+    async def send_info(self):
+        print("Sending room info")
         message = self.get_room_info()
         message["type"]= "RoomInfo"
         # broadcast([client.websocket for client in self.clients], json.dumps(message))
-        self.broadcast(message)
+        # self.broadcast(message)
+        for client in self.clients:
+            message["host"] = client == self.host
+            print(f"Sending room info to {client.name}")
+            await client.websocket.send(json.dumps(message))
 
-    def get_room_info(self):
+    def get_room_info(self, for_host=False):
         return {
             "name" : self.name,
             "players": [client.name for client in self.clients],
-            "private": self.private
+            "private": self.private,
+            "host_index": self.host_index,
+            "host": for_host
         }
 
-    def remove_client(self, client):
-        super().remove_client(client)
+    async def remove_client(self, client):
+        await super().remove_client(client)
         if len(self.clients) == 0:
-            self.cleanup()
+            await self.cleanup()
         else:
-            self.send_info()
+            await self.send_info()
+    async def process_message(self, message, client):
+        if message.type == "StartGame":
+            # self.join_room(client, message)
+            print("Starting game")
+        else:
+            raise ValueError("Message type not applicable for current state")
 
-    def cleanup(self):
-        super().cleanup()
+    async def cleanup(self):
+        await super().cleanup()
         #remove any references
         print(f"Room {self.name} shuttingdown")
 
@@ -167,11 +210,12 @@ class MasterLobby(MessageResponder):
     def prune_rooms(self):
         self.rooms = [room for room in self.rooms if room.client_count() > 0]
 
-    def process_message(self, message, client):
+    async def process_message(self, message, client):
+        print(f"master lobby processing message type: {message.type}")
         if message.type == "JoinRoom":
-            self.join_room(client, message)
+            await self.join_room(client, message)
         elif message.type == "CreateRoom":
-            self.create_room(client, message)
+            await self.create_room(client, message)
         elif message.type == "ChangeName":
             self.change_name(client, message)
         else:
@@ -188,24 +232,24 @@ class MasterLobby(MessageResponder):
         print(f"Client new name: {message.name}")
         client.name = message.name
 
-    def join_room(self, client, message):
+    async def join_room(self, client, message):
         print("Joining room")
         room = self.find_room(message.room)
         print(f"found room: {room}")
         self.clients.remove(client)
         client.state_change(room)
-        room.add_client(client)
+        await room.add_client(client)
 
-    def create_room(self, client, message):
+    async def create_room(self, client, message):
         room_name = ''.join(random.choice(string.ascii_uppercase) for i in range(ROOM_NAME_LENGTH))
-        room = Room([client], self.handler, room_name, message.private)
-        # room.add_client(client)
+        room = Room(client, self.handler, room_name, message.private)
+        await room.send_info()
         self.rooms.append(room)
         self.clients.remove(client)
         client.state_change(room)
         print(f"Created room {room_name}")
 
-    def add_client(self, client):
+    async def add_client(self, client):
         self.clients.append(client)
 
 
@@ -238,7 +282,7 @@ class ClientHandler:
     async def join(self, websocket):
         #drop straight into the master lobby
         client = Client(websocket, self.master_lobby)
-        self.master_lobby.add_client(client)
+        await self.master_lobby.add_client(client)
         self.clients.add(client)
         print(f"New Master Lobby client, total: {len(self.clients)}")
         while True:
@@ -253,9 +297,10 @@ class ClientHandler:
                 break
             try:
                 json_blob = json.loads(message_json)
-                message = Message.process_message(json_blob)
+                message = Message.process_json(json_blob)
+                print(f"Processed message type: {message.type}")
 
-                client.process_message(message)
+                await client.process_message(message)
 
             except Exception as e:
                 print(f"Failed to process a message: "+str(e))

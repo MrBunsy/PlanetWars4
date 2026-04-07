@@ -34,14 +34,24 @@ class Message{
         this.type = this.json["type"];
     }
 
-    getProperty(propertyName){
+    getRawProperty(propertyName){
         if(!(propertyName in this.json)){
             throw new Error(`Message does not have property ${propertyName}`);
         }
-        // if(!(typeof this.json[propertyName] != propertyType)){
-        //     throw new Error(`Property ${propertyName} is not type ${propertyType}`)
-        // }
         return this.json[propertyName];
+    }
+
+    getString(propertyName){
+        // TODO ?
+        return this.getRawProperty(propertyName);
+    }
+
+    getBoolean(propertyName){
+        return this.getRawProperty(propertyName) === true;
+    }
+
+    getInt(propertyName){
+        return parseInt(this.getRawProperty(propertyName));
     }
 }
 
@@ -52,9 +62,12 @@ class RoomInfoMessage extends Message{
             throw new Error("Message not RoomInfo");
         }
 
-        this.name = String(this.getProperty("name"));
-        this.players = this.getProperty("players");
-        this.private = this.getProperty("private")
+        this.name = String(this.getString("name"));
+        this.players = this.getRawProperty("players");
+        this.private = this.getString("private");
+        //first player is always the host at the moment
+        this.host_index = this.getInt("host_index");
+        this.host = this.getBoolean("host");
         if(!Array.isArray(this.players)){
             throw new Error ("players is not an array");
         }
@@ -120,9 +133,12 @@ class MasterLobby extends MessageResponder{
 
         this.mainDiv = document.getElementById('planet_wars_master_lobby');
         this.mainDiv.classList.remove("hidden");
-
+        this.joinForm = document.getElementById("planet_wars_join_room_form");
+        this.joinForm.reset();
+        this.nameBox = document.getElementById("planet_wars_player_name");
+        // this.nameBox.reset();
         
-        document.getElementById("planet_wars_join_room_form").onsubmit = (event) =>{
+        this.joinForm.onsubmit = (event) =>{
             event.preventDefault();
             let message = {
                 "type": "JoinRoom",
@@ -140,12 +156,20 @@ class MasterLobby extends MessageResponder{
             this.send(message);
             return false;
         }
-        document.getElementById("planet_wars_player_name").onkeyup = (event) =>{
+        this.nameBox.onkeyup = (event) =>{
             console.log(event);
-            let message = {
-                "type": "ChangeName",
-                "name": document.getElementById("planet_wars_player_name").value
-            }
+            this.updateName();
+        }
+        // this.nameBox.onkeyup();
+        // this.updateName();
+    }
+
+    updateName(){
+        let message = {
+            "type": "ChangeName",
+            "name": document.getElementById("planet_wars_player_name").value
+        }
+        if(message["name"].length > 0){
             this.send(message);
         }
     }
@@ -179,7 +203,23 @@ class Room extends MessageResponder{
         this.nameSpan = this.mainDiv.querySelector("#room_name");
         this.privateSpan = this.mainDiv.querySelector("#room_private");
         this.playersList = this.mainDiv.querySelector("#players")
+        this.playForm = this.mainDiv.querySelector("#play_form")
+        this.host = false;
+
         this.processRoomInfo(this.roomInfo);
+        
+
+        this.playForm.onsubmit = (event) =>{
+            event.preventDefault();
+            // start the game already!
+            // send off settings (when they exist)
+            let message = {
+                "type": "StartGame",
+                // "private": event.target.elements.private.value == "on"
+            }
+            this.send(message);
+            return false;
+        }
 
         this.mainDiv.classList.remove("hidden");
         
@@ -194,17 +234,30 @@ class Room extends MessageResponder{
         }
     }
 
+    isHost(){
+        // this will get more complicated at some point
+        return this.host;
+    }
+
     processRoomInfo(roomInfo){
         this.roomInfo = roomInfo;
-        this.nameSpan.innerHTML = this.roomInfo["name"];
+        this.nameSpan.innerHTML = this.roomInfo.name;
         this.privateSpan.innerHTML = "";
-        if (roomInfo["private"]){
+        if (roomInfo.private){
             this.privateSpan.innerHTML = " (private)";
         }
         this.playersList.innerHTML = "";
-        for(const player of roomInfo["players"]){
+        for(const player of roomInfo.players){
             this.playersList.innerHTML += `<li>${player}</li>`;
         }
+        let playButtonVisible = roomInfo.players.length >= 2;
+        if (playButtonVisible && this.isHost()){
+            this.playForm.classList.remove("hidden");
+        }else{
+            this.playForm.classList.add("hidden");
+        }
+        this.host = roomInfo.host;
+
 
     }
 

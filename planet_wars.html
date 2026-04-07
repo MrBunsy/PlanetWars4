@@ -15,7 +15,7 @@
 </div>
 <div class="hidden" id="planet_wars_master_lobby">
     <h2>Master Lobby</h2>
-    <label>Your Name: <input type="text" id="planet_wars_player_name" name="name"></label>
+    <label>Your Name: <input type="text" id="planet_wars_player_name" name="name" value="Unamed Player"></label>
     <form id="planet_wars_join_room_form">
         <input type="text" name="roomName">
         <input type="submit" value="Join Room">
@@ -30,6 +30,10 @@
     <li id="players">
 
     </li>
+    <form id="play_form" class="hidden">
+        <!-- game settings to go here -->
+    <input type="submit" value="Play"  id="play_button">
+    </form>
 </div>
 </body>
 </html>
