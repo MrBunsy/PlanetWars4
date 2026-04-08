@@ -89,17 +89,18 @@ class StartGameMessage(Message):
     def set_players(self, players):
         self.players = players
 
-    def to_json(self):
+    def to_json(self, player_index=0):
         return {
             "type": "StartGame",
             "seed" : self.seed,
-            "players": self.players
+            "players": self.players,
+            "player_index" : player_index
         }
 
 Message.mapping["CreateRoom"]= CreateRoomMessage
 Message.mapping["ChangeName"]= ChangeNameMessage
 Message.mapping["JoinRoom"]= JoinRoomMessage
-Message.mapping["StartGame"]= JoinRoomMessage
+Message.mapping["StartGame"]= StartGameMessage
 class Client:
 
 
@@ -177,11 +178,14 @@ class Room(MessageResponder):
     def get_room_info(self, for_host=False):
         return {
             "name" : self.name,
-            "players": [client.name for client in self.clients],
+            "players": self.get_players(),
             "private": self.private,
             "host_index": self.host_index,
             "host": for_host
         }
+
+    def get_players(self):
+        return [client.name for client in self.clients]
 
     async def remove_client(self, client):
         await super().remove_client(client)
@@ -192,9 +196,16 @@ class Room(MessageResponder):
     async def process_message(self, message, client):
         if message.type == "StartGame":
             # self.join_room(client, message)
+            await self.start_game(message)
             print("Starting game")
         else:
             raise ValueError("Message type not applicable for current state")
+
+    async def start_game(self, message):
+        message.set_players(self.get_players())
+        for i,client in enumerate(self.clients):
+            await client.websocket.send(json.dumps(message.to_json(player_index=i)))
+        # self.broadcast(message.to_json())
 
     async def cleanup(self):
         await super().cleanup()

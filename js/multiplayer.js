@@ -1,3 +1,6 @@
+import {World} from './world.js'
+import {WorldRenderer, Viewport} from './render.js'
+import {Vector} from './geometry.js'
 
 /**
  * message structure:
@@ -75,7 +78,30 @@ class RoomInfoMessage extends Message{
     }
 }
 
-Message.mapping = {"RoomInfo": RoomInfoMessage};
+class ErrorMessage extends Message{
+    constructor(json){
+        super(json);
+        this.detail = this.getString("detail")
+    }
+}
+
+class StartGameMessage extends Message{
+    constructor(json){
+        super(json);
+        this.seed = this.getInt("seed")
+        this.players = this.getRawProperty("players");
+        if(!Array.isArray(this.players)){
+            throw new Error ("players is not an array");
+        }
+        this.playerIndex = this.getInt("player_index");
+    }
+}
+
+Message.mapping = {
+    "RoomInfo": RoomInfoMessage,
+    "Error": ErrorMessage,
+    "StartGame": StartGameMessage,
+};
 
 /**
  * Base class for all the objects which control game state adn respond to messages
@@ -88,7 +114,13 @@ class MessageResponder{
     }
 
     processMessage(message){
-        console.log(message)
+        switch(message.type){
+            case "Error":
+                //we have joined a room successfully
+                alert(message.detail);
+                return true;
+        }
+        return false;
     }
 
     cleanUp(){
@@ -175,6 +207,7 @@ class MasterLobby extends MessageResponder{
     }
 
     processMessage(message){
+        super.processMessage(message);
         switch(message.type){
             case "RoomInfo":
                 //we have joined a room successfully
@@ -194,6 +227,44 @@ class MasterLobby extends MessageResponder{
     }
 }
 
+class Game extends MessageResponder{
+    constructor(websocket, stateChangeCallback, gameMessage){
+        super(websocket, stateChangeCallback)
+        this.gameMessage = gameMessage;
+        this.mainDiv = document.getElementById("planet_wars_game");
+        this.mainDiv.classList.remove("hidden");
+
+
+        let radius = 400;
+        if (this.gameMessage.players.length > 4){
+            radius = 500;
+        }
+        this.world = new World(this.gameMessage.players.length, this.gameMessage.seed, radius);
+        this.renderer = new WorldRenderer(this.gameMessage.seed);
+        let canvas_size = parseInt(document.getElementById("planet_wars0").width);
+        let zoom = (canvas_size/2)/this.world.radius
+        this.renderer.addBackgroundViewport(new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars0").getContext("2d"), canvas_size, canvas_size))
+        let missileTrailsViewPort = new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars1").getContext("2d"), canvas_size, canvas_size);
+        let missileViewPort = new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars2").getContext("2d"), canvas_size, canvas_size);
+        this.renderer.addLiveViewport(missileViewPort);
+        this.renderer.addTrailsViewport(missileTrailsViewPort)
+        
+        this.renderer.renderBackground(this.world)
+    }
+
+    processMessage(message){
+        super.processMessage(message);
+        // switch(message.type){
+
+        // }
+    }
+
+    cleanUp(){
+        super.cleanUp();
+        this.mainDiv.classList.add("hidden");
+        //TODO tidy up game!
+    }
+}
 
 class Room extends MessageResponder{
     constructor(websocket, stateChangeCallback, roomMessage){
@@ -227,15 +298,23 @@ class Room extends MessageResponder{
     }
 
     processMessage(message){
+        super.processMessage(message);
         switch(message.type){
             case "RoomInfo":
                 this.processRoomInfo(message)
                 break;
+            case "StartGame":
+                this.startGame(message);
+                break;
         }
     }
 
+    startGame(startMessage){
+        let game = new Game(this.websocket, this.stateChangeCallback, startMessage);
+        this.stateChangeCallback(game);
+    }
+
     isHost(){
-        // this will get more complicated at some point
         return this.host;
     }
 
