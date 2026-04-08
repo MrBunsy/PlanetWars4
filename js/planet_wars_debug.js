@@ -27,7 +27,7 @@ seed = 2;
 
 console.log(seed)
 
-let world = new World(6, seed, 500);
+let world = new World(2, seed, 500);
 let renderer = new WorldRenderer(seed);
 
 let zoom = 400/world.radius
