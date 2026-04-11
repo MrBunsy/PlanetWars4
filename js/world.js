@@ -118,6 +118,9 @@ export class World{
         this.physics.addEntity(missile)
 
     }
+    fireMissileAtAngle(playerIndex, angle){
+        this.fireMissile(playerIndex, polar(angle, this.maxMissileSpeed))
+    }
 
     removeMissile(missile){
         const index = this.missiles.indexOf(missile);

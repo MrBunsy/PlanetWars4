@@ -62,9 +62,12 @@ class Message:
 
     def process_enum(self, property_name, enum):
         value = self.process_string(property_name)
-        if value in enum:
-            return enum[value]
-        raise ValueError(f"Not a valid {enum.__name__}")
+        # if value in enum:
+        try:
+            returnthis = enum[value]
+            return returnthis
+        except:
+            raise ValueError(f"Not a valid {enum.__name__}")
 
     def process_number(self, property_name):
         if property_name not in self.json:
@@ -120,7 +123,7 @@ class StartGameMessage(Message):
 class PlayerPlanMessage(Message):
     def __init__(self, json_blob):
         super().__init__(json_blob)
-        self.angle = -1
+        self.angle = 0
         self.action = self.process_enum("action", PlayerAction)
         if self.action == PlayerAction.Fire:
             self.angle = self.process_number("angle")
@@ -216,6 +219,8 @@ class Room(MessageResponder):
         }
 
     def get_players(self):
+        print("room get_players")
+        print(self.clients)
         return [client.name for client in self.clients]
 
     async def remove_client(self, client):
@@ -237,10 +242,11 @@ class Room(MessageResponder):
         message.set_players(self.get_players())
         for i,client in enumerate(self.clients):
             await client.websocket.send(json.dumps(message.to_json(player_index=i)))
-        game = Game(self.clients, self.handler, self.get_room_info())
+        game = Game(self.clients[:], self.handler, self.get_room_info())
         self.handler.master_lobby.add_game(game)
         for client in self.clients:
             client.state_change(game)
+        self.clients = []
 
     async def cleanup(self):
         await super().cleanup()
@@ -257,11 +263,11 @@ does this break with the idea of having each state as a MessageResponder?
 
 going back to all being MessageResponders and it'll phone home to keep a list of games
 '''
-class Game(Room):
+class Game(MessageResponder):
     class Plan:
-        def __init__(self, game, message, client):
-            self.player_index = game.get_player_index(client)
-            #PlayerAction
+        def __init__(self, message, player_index):
+            self.player_index = player_index
+            # PlayerAction
             self.action = message.action
             # message object has already done these based on the message type
             self.angle = message.angle
@@ -269,13 +275,18 @@ class Game(Room):
             blob = {
                 "player": self.player_index,
                 "action": self.action.name,
+                "angle": self.angle
             }
-            if self.angle >= 0:
-                blob["angle"] = self.angle
+            # if self.angle >= 0:
+            #     blob["angle"] = self.angle
 
             return blob
+
     def __init__(self, clients, handler, room_info):
-        super().__init__(clients,handler, room_info["name"], room_info["private"])
+        super().__init__(clients,handler)
+        #extending from room would be nice but too much doesn't align. just pretend to be a roomish for the master lobby
+        self.name=room_info["name"]
+        self.private = room_info["private"]
         # [ {"colour": "rgb", "index": int, "client": clientObject/None} ]
         self.players = []
         i=0
@@ -291,7 +302,6 @@ class Game(Room):
         # self.room_info = room_info
         self.state = GameState.PLANNING
         #list of lists of plans:
-        #[ {player_index: {plan message} } ]
         self.plans = [[]]
 
     async def process_message(self, message, client):
@@ -301,10 +311,13 @@ class Game(Room):
             raise ValueError("Message type not applicable for current state")
 
     def get_player_index(self, client):
-        for i,player in enumerate(self.players):
-            if player.client == client:
-                return i
-        raise ValueError("plan for player that doesn't exist")
+        print(f"get_player index for client: {client}")
+        clients = [player["client"] for player in self.players]
+        try:
+            index = clients.index(client)
+        except:
+            raise ValueError("player not found for client")
+        return index
 
     ''' send the plans to all players for the game to run'''
     async def execute_plans(self):
@@ -321,8 +334,10 @@ class Game(Room):
 
     def got_all_plans(self):
         #got a plan for every currently connected client
+        ready_player_indexes = [plan.player_index for plan in self.plans[-1]]
         for client in self.clients:
-            if not client in [plan.client for plan in self.plans[-1]]:
+            print(f"got_all_plans, checking client {client}")
+            if self.get_player_index(client) not in ready_player_indexes:
                 return False
         return True
 
@@ -330,11 +345,22 @@ class Game(Room):
     async def process_player_plan(self, message, client):
         if self.state != GameState.PLANNING:
             raise ValueError(f"Not in planning state, invalid to submit plan from player {self.get_player_index(client)}")
-        self.plans[-1].append(Game.Plan(self, message, client))
+        print(f"message: {message}, client: {client}, players: {self.players}. clients: {self.clients}")
+        self.plans[-1].append(Game.Plan(message, self.get_player_index(client)))
         if self.got_all_plans():
             print(f"Game {self.name} has received all plans")
             #got all the plans for the currently connected clients (happy to skip disconnected players for now)
             await self.execute_plans()
+    #
+    # async def send_info(self):
+    #     #do nothing, just to override Room's send_info
+    #     pass
+
+    async def remove_client(self, client):
+        await super().remove_client(client)
+        for player in self.players:
+            if player["client"] is client:
+                player["client"] = None
 
     async def cleanup(self):
         await super().cleanup()

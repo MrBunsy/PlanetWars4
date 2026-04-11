@@ -29,9 +29,11 @@ class Message{
 
     }
 
-    constructor(messageJSON) {
+    constructor(messageJSON, notFullMessage=false) {
         this.json = messageJSON;
-        if(!("type" in this.json)){
+        // useful to use Message to process parts of message (eg arrays of objects)
+        // so not all "Messages" will have a type
+        if(!notFullMessage && !("type" in this.json)){
             throw new Error("Cannot parse message, no type");
         }
         this.type = this.json["type"];
@@ -147,11 +149,17 @@ class StartGameMessage extends Message{
 
 class Plan extends Message{
     constructor(json){
-        super(json);
+        super(json, true);
+        this.player = this.getInt("player");
+        this.action = this.getString("action");
+        if(!["Fire"].includes(this.action)){
+            throw new Error(`Player action (${this.action}) not recognised`)
+        }
+        this.angle = this.getFloat("angle");
     }
 }
 
-class ExecutePlanMessage extends Message{
+class ExecutePlansMessage extends Message{
     constructor(json){
         super(json);
         this.plans = this.getArrayOfObjects("plans", Plan);
@@ -162,7 +170,7 @@ Message.mapping = {
     "RoomInfo": RoomInfoMessage,
     "Error": ErrorMessage,
     "StartGame": StartGameMessage,
-    "ExecutePlan": ExecutePlanMessage,
+    "ExecutePlans": ExecutePlansMessage,
     "LobbyInfo": LobbyInfoMessage,
 };
 
@@ -317,7 +325,13 @@ class Game extends MessageResponder{
 
         this.playerInfoHeader = this.mainDiv.querySelector("#player_info")
 
-        
+        this.fps = 30;
+        this.delay_ms = 1000/this.fps;
+        //smallest timestep we'll simulate. if I get runge kutta working, might be able to increase this to lower CPU usage
+        this.physicsSteps_ms = 5;
+
+        //how fast to playback simulation. Want it slow enough to be fun to watch, but not so slow as to get boring
+        this.simulationSpeed = 0.4;
 
 
         let radius = 400;
@@ -337,11 +351,12 @@ class Game extends MessageResponder{
         this.renderer.renderBackground(this.world)
         /*
          - "PLANNING": everyone chooses their action
+         - "PLANNED": game still in PLANNING but we've submitted our plan
          - "EXECUTING": all the actions occur at once
          - "FINISHED": one or no players left at the end
 
         */
-        this.state = "PLANING";
+        this.state = "PLANNING";
 
         this.playerInfoHeader.innerHTML = `You are player ${this.playerIndex}`
         this.playerInfoHeader.style=`color:${this.world.ships[this.playerIndex].colour}`
@@ -353,17 +368,73 @@ class Game extends MessageResponder{
             let x = e.clientX - rect.left; //x position within the element.
             let y = e.clientY - rect.top;  //y position within the element.
             let worldPos = missileViewPort.translateFromPixelToWorld(new Vector(x,y));
+            this.clickedHere(worldPos);
         
         }
 
+    }
+
+    runSimulation(){
+        //framerate
+        
+        // simulationSpeed = 2
+
+        this.lastUpdateTime = performance.now();
+        this.state = "EXECUTING";
+
+        // setInterval(update.bind(world.physics), delay_ms);
+        // function update(){
+            
+        // }
+        setTimeout(this.updateSimulation.bind(this), this.delay_ms)
+    }
+
+    updateSimulation(){
+        let now = performance.now();
+        let actualTimePassed_ms = now - this.lastUpdateTime;
+        this.lastUpdateTime = now;
+        // console.log(`Actual time passed: ${actualTimePassed_ms}ms`)
+        for(let i =0; i<Math.floor(actualTimePassed_ms/this.physicsSteps_ms);i++){
+            this.world.physics.update(this.simulationSpeed*this.physicsSteps_ms/1000, i==0);
+        }
+        this.renderer.renderLive(this.world);
+        this.renderer.renderTrails(this.world);
+        setTimeout(this.updateSimulation.bind(this), this.delay_ms)
+    }
+
+    clickedHere(worldPos){
+        if(this.state == "PLANNING"){
+            let angle = this.world.ships[this.playerIndex].position.angleTo(worldPos);
+            let message = {
+                "type":"PlayerPlan",
+                "action": "Fire",
+                "angle": angle
+            }
+            this.state = "PLANNED";
+            this.send(message)
+            
+        }
     }
 
     processMessage(message){
         super.processMessage(message);
         switch(message.type){
             case "ExecutePlans":
+                this.executePlan(message);
                 break;
 
+        }
+    }
+
+    executePlan(message){
+        if (this.state == "PLANNED"){
+            for (const plan of message.plans){
+                switch(plan.action){
+                    case "Fire":
+                        this.world.fireMissileAtAngle(plan.player, plan.angle);
+                }
+            }
+            this.runSimulation();
         }
     }
 
