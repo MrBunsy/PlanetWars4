@@ -39,11 +39,10 @@ export class PhysicsEntity{
 
 export class PhysicsEngine{
 
-    // stealing constants from the old physics engine because it worked pretty well. Gravity was being modelled as coloumbs law
-    // so this was k.
-    G = 400;//8990000000;
+    //completely made up. seems to work.
+    G = 400;
     //F=-bV (drag), friction=b
-    friction=5;
+    friction=0;//0.01;
 
     constructor() {
         this.entities = [];
@@ -98,7 +97,8 @@ export class PhysicsEngine{
             let acceleration = this.getAccelerationForEntity(entity, entity.velocity, entity.position);
             // keep position same for this loop so we don't affect calculations of other entities
             entity.newPosition = this.eulerIntegration(entity.position, entity.velocity, acceleration, time_s);
-            entity.velocity = entity.newPosition.subtract(entity.position).multiply(1/time_s);
+            // entity.velocity = entity.newPosition.subtract(entity.position).multiply(1/time_s);
+            entity.velocity = entity.velocity.add(acceleration.multiply(time_s));
         }
 
         for(let entityIndex=0; entityIndex < this.entities.length; entityIndex++){
@@ -107,7 +107,7 @@ export class PhysicsEngine{
 
             for(let otherEntityIndex=entityIndex+1; otherEntityIndex <this.entities.length; otherEntityIndex++){
                 let otherEntity = this.entities[otherEntityIndex];
-                if(entity.newPosition.subtract(otherEntity.newPosition).magnituteSquared() < Math.pow(entity.radius + otherEntity.radius, 2)){
+                if(entity.newPosition.subtract(otherEntity.newPosition).magnitudeSquared() < Math.pow(entity.radius + otherEntity.radius, 2)){
                     // collision!
                     this.collision(entity, otherEntity);
                 }
@@ -138,7 +138,7 @@ export class PhysicsEngine{
     }
 
     getAccelerationForEntity(entity, velocity, position){
-        let force = this.getGravityForces(entity, position).add(this.getGravityForces(velocity));
+        let force = this.getGravityForces(entity, position).add(this.getFrictionForces(velocity));
         let acceleration = force.multiply(entity.mass);
         return acceleration;
     }
@@ -157,6 +157,34 @@ export class PhysicsEngine{
     }
 
     /**
+     * Given a ship, work out how far "out" a missile can go from the centre of the map
+     * Aproximately correct. Slightly underestimates. Multiplying by 1.5 appears to be roughly right.
+     * I assume this is innacuraies in the physics engine
+     * 
+     * Bit more accurate than just calculating theoretical maximum height from a single sphere
+     * @param {*} ship 
+     */
+    getEscapeDistanceForMissile(ship, maxMissileSpeed, maxDistance=1000, missileMass=1){
+        const pos = ship.position;
+        // const centreOfMass = this.getCentreOfMass();
+        // actually try from centre of map I think
+        const centreOfMap = new Vector(0,0)
+        const startingEnergy = 0.5*missileMass*Math.pow(maxMissileSpeed, 2);
+        const startingPotential = this.getGravitationalPotential(pos);
+        const outDirection = pos.subtract(centreOfMap).unit();
+        for(let distance = 0; distance < maxDistance; distance++){
+            let testPos = pos.add(outDirection.multiply(distance))
+            let potential = this.getGravitationalPotential(testPos)
+            if (startingEnergy + startingPotential < potential){
+                return distance;
+                break;
+            }
+        }
+        //escaped, or least can get further than the test
+        return -1;
+    }
+
+    /**
      * Really getting electric potential as that was what was modelled before
      * multiply this by the mass of the object at position and it is real gravitational potential energy
      * @param {*} position 
@@ -166,7 +194,7 @@ export class PhysicsEngine{
         
         for (const entity of this.entities)
         {
-            let r=position.subtract(entity.position).magnitute()
+            let r=position.subtract(entity.position).magnitude()
             if (r!=0){
                 //find the electric potential at a point
                 potential+=-this.G * entity.mass / r;
@@ -190,7 +218,11 @@ export class PhysicsEngine{
             {
                 if(!Object.is(entity, otherEntity))
                 {
-                    let rsqrd=entityPos.subtract(otherEntity.position).magnituteSquared();
+                    let rsqrd=entityPos.subtract(otherEntity.position).magnitudeSquared();
+                    if (rsqrd == 0){
+                        //just in case
+                        continue;
+                    }
                     //coloumbs law:
                     //f=k.q1.q2/r^2
                     //or gravity:
@@ -222,7 +254,7 @@ export class PhysicsEngine{
     getEscapeVelocity(atPosition){
         let totalMass = this.getTotalMass();
         let centreOfMass = this.getCentreOfMass();
-        let distance = atPosition.subtract(centreOfMass).magnitute();
+        let distance = atPosition.subtract(centreOfMass).magnitude();
         //treating the whole world as a single mass 
         let v = Math.sqrt(2*this.G*totalMass/distance)
         return v;

@@ -23,12 +23,12 @@ export class Vector{
         return new Vector(this.x*scalar, this.y*scalar)
     }
 
-    magnituteSquared(){
+    magnitudeSquared(){
         return this.x*this.x + this.y*this.y;
     }
 
-    magnitute(){
-        return Math.sqrt(this.magnituteSquared());
+    magnitude(){
+        return Math.sqrt(this.magnitudeSquared());
     }
 
     average(b){
@@ -40,12 +40,12 @@ export class Vector{
     }
 
     distanceTo(b){
-        return b.subtract(this).magnitute()
+        return b.subtract(this).magnitude()
     }
 
     unit(){
         //turn into unit vector
-        return this.multiply(1/this.magnitute());
+        return this.multiply(1/this.magnitude());
     }
 
     copy(){

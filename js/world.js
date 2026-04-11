@@ -79,7 +79,7 @@ export class World{
     /***
      * Holds the state of the world and will interact with the physics engine to run a single match
      */
-    constructor(players, seed, radius=400, shipRadius=10, missileRadius=1, blackHoleRadius=5, planetMinR=20, planetMaxR=50, maxMissileSpeed=100){
+    constructor(players, seed, radius=400,planetMinR=20, planetMaxR=50, shipRadius=10, missileRadius=1, blackHoleRadius=5, maxMissileSpeed=100){
         
         this.playerCount = players;
         this.random = new SeededRandom(seed);
@@ -131,6 +131,7 @@ export class World{
             this.physics = new PhysicsEngine();
             this.generateShips();
             this.generatePlanets(this.playerCount + 3);
+            // this.generatePlanets(1);
             let blackholeCount = this.random.next() < 0.2 ? 1 : 0;
             this.generateBlackholes(blackholeCount);
 
@@ -139,6 +140,7 @@ export class World{
             this.physics.addEntities(this.blackholes);
             attempts++;
             console.log("generateMap attempt " + attempts)
+            
         }while(!this.checkMapPossible() && attempts < 1000)
     }
 
@@ -160,26 +162,29 @@ export class World{
             toPlonk = 1;
         }
 
-        for(let playerIndex =0; playerIndex< toPlonk ; playerIndex++){
-            let nextPlayerIndex = (playerIndex+1)%this.playerCount;
-            let betweenPlayers = this.ships[playerIndex].position.average(this.ships[nextPlayerIndex].position);
-            let towardsCentre = this.random.next()*this.radius*0.2;
-            //bring towards the centre by a small amount
-            betweenPlayers = betweenPlayers.add(new Vector(0,0).subtract(betweenPlayers).unit().multiply(towardsCentre));
+        if (this.playerCount > 2) 
+        {
+            for(let playerIndex =0; playerIndex< toPlonk ; playerIndex++){
+                let nextPlayerIndex = (playerIndex+1)%this.playerCount;
+                let betweenPlayers = this.ships[playerIndex].position.average(this.ships[nextPlayerIndex].position);
+                let towardsCentre = this.random.next()*this.radius*0.2;
+                //bring towards the centre by a small amount
+                betweenPlayers = betweenPlayers.add(new Vector(0,0).subtract(betweenPlayers).unit().multiply(towardsCentre));
 
 
-            this.planets=this.planets.concat(this.plonkPlanet(betweenPlayers, 1));
+                this.planets=this.planets.concat(this.plonkPlanet(betweenPlayers, 1));
+            }
         }
 
 
-        if (this.playerCount > 2) 
-        {
-            
+        // if (this.playerCount > 2) 
+        // {
+            // one roughly in the centre
             if (this.random.next() < 0.9) 
             {
                 this.planets=this.planets.concat(this.plonkPlanet(new Vector(0,0), 2));
             }
-        }
+        // }
 
         let loopLimit = 0;
 
@@ -270,12 +275,12 @@ export class World{
 
     objectOverlaps(testPosition, testRadius, minPlanetMultiplier=1/4, minShipMultiplier=15){
         for(const planet of this.planets){
-            if (testPosition.subtract(planet.position).magnituteSquared() < Math.pow(testRadius + planet.radius + (testRadius + planet.radius)*minPlanetMultiplier, 2)){
+            if (testPosition.subtract(planet.position).magnitudeSquared() < Math.pow(testRadius + planet.radius + (testRadius + planet.radius)*minPlanetMultiplier, 2)){
                 return true;
             }
         }
         for(const ship of this.ships){
-            if(testPosition.subtract(ship.position).magnituteSquared() < Math.pow(testRadius + ship.radius*minShipMultiplier, 2)){
+            if(testPosition.subtract(ship.position).magnitudeSquared() < Math.pow(testRadius + ship.radius*minShipMultiplier, 2)){
                 return true;
             }
         }
@@ -284,7 +289,7 @@ export class World{
 
     nearestBlackhole(testPosition, maxDistance){
         for(const blackhole of this.blackholes){
-            if(testPosition.subtract(blackhole.position).magnituteSquared() < Math.pow(maxDistance, 2)){
+            if(testPosition.subtract(blackhole.position).magnitudeSquared() < Math.pow(maxDistance, 2)){
                 return blackhole;
             }
         }
@@ -305,7 +310,7 @@ export class World{
         let centreOfMass = this.physics.getCentreOfMass();
         // console.log("Centre: " + centreOfMass)
 
-        if (centreOfMass.magnitute > this.radius*0.15){
+        if (centreOfMass.magnitude > this.radius*0.15){
             //too uneven
             console.log(`Centre of mass too off centre: ${centreOfMass}`)
             return false;
@@ -313,35 +318,59 @@ export class World{
 
         let potentials = []
 
+        // keep escape velocity in range. Not so low that we can escape the map massively, but not so high that the missile is just sucked into the centre
+        // Experiments have shown that escape velocity isn't super accurate as representing all the planets as a single planet isn't quite right
+        // could update to calculating potential over distance
+        // it's good enough for an order-of-magnitude.
         for (const ship of this.ships) 
         {
-            let escapeVelocity = this.physics.getEscapeVelocity(ship.position);
-            // console.log("Escape velocity for ship " + ship.colour + " = "+escapeVelocity)
-            if (escapeVelocity < this.maxMissileSpeed*1.25){
-                //don't want to be able to just go around the edge
-                 console.log(`Escape velocity too low for ship ${ship.colour} = ${escapeVelocity}`)
+            // let escapeVelocity = this.physics.getEscapeVelocity(ship.position);
+            // // console.log("Escape velocity for ship " + ship.colour + " = "+escapeVelocity)
+            // // if (escapeVelocity < this.maxMissileSpeed*1.25){
+            // if (escapeVelocity < this.maxMissileSpeed*2){
+            //     //don't want to be able to just go around the edge
+            //     console.log(`Escape velocity too low for ship ${ship.colour} = ${escapeVelocity}`)
+            //     this.planetMinR*=1.001
+            //     this.planetMaxR*=1.001
+            //     return false;
+            // }
+            // if (escapeVelocity > this.maxMissileSpeed*3.5){
+            //     //don't want missiles to just be sucked into the centre
+            //     console.log(`Escape velocity too high for ship ${ship.colour} = ${escapeVelocity}`)
+
+            //     // idea - if struggling to make world possible, make planets smaller
+            //     this.planetMinR*=0.999
+            //     this.planetMaxR*=0.999
+
+            //     return false;
+            // }
+
+            let maxMissileDistanceOutwards = this.physics.getEscapeDistanceForMissile(ship, this.maxMissileSpeed)
+            if (maxMissileDistanceOutwards < 0 || maxMissileDistanceOutwards > this.radius*0.4){
+                //can escape or go too far
+                console.log(`Gravity too low for ship ${ship.colour} max distance = ${maxMissileDistanceOutwards} > ${this.radius*0.1}`)
+                this.planetMinR*=1.001;
+                this.planetMaxR*=1.001;
                 return false;
             }
-            if (escapeVelocity > this.maxMissileSpeed*2){
-                //don't want missiles to just be sucked into the centre
-                console.log(`Escape velocity too high for ship ${ship.colour} = ${escapeVelocity}`)
+            if (maxMissileDistanceOutwards < this.radius*0.1){
+                //too strong
+                console.log(`Gravity too high for ship ${ship.colour} max distance = ${maxMissileDistanceOutwards} < ${this.radius*0.1}`)
+                this.planetMinR*=0.999;
+                this.planetMaxR*=0.999;
                 return false;
             }
+
+
+
             potentials.push(this.physics.getGravitationalPotential(ship.position));
         }
 
-
-
-
-        // //ported from old planet wars when it was modelled as charge rather than gravity. now it's called gravity but it's all the same constants
-        // let potentials = [];
-        // //build up array of potentials at each ship
-        // for (const ship of this.ships) 
-        // {
-        //     potentials.push(this.physics.getGravitationalPotential(ship.position));
-        // }
-        // //checking voltage between ships, if this is less than -160,000 it seems to be impossible to hit.
-        // //TODO check still true with the slightly larger maps and slightly different masses
+        /* see if there's enough energy in a missile to actually reach all the other opponents. The physics engine is just about accurate
+        enough for this is be aproximately correct (might be worth rk4 just to see if this can get better - see experiments with escape
+        velocty in planet_wars_debug.js).
+        Doesn't take into account paths.
+        */
         for (let us = 0; us < potentials.length; us++) 
         {
             for (let them = 0; them < potentials.length; them++) 
@@ -350,13 +379,10 @@ export class World{
                     continue;
                 }
                 // console.log(`From ${us} to ${them} = ${potentials[them] - potentials[us]}`)
-                //not multipling by mass because the potentials were and they will cancel out
+                //not multipling by mass because the potentials were and they will cancel out (plus mass of missile is hardcoded to 1)
                 let missileKineticEnergy = 0.5*Math.pow(this.maxMissileSpeed,2);
 
-                // I think I've got this -ve somehow, still thinking. some experiments have shown that a -ve value here doesn't result in a missile being
-                // able to reach another ship
-                // console.log(`kinetic energy/mass for missile = ${missileKineticEnergy}`)
-                let maxDifference = missileKineticEnergy*0.2;
+                let maxDifference = missileKineticEnergy*0.5;
                 if (potentials[them] - potentials[us] > maxDifference) 
                 {
                     console.log(`From ${us} to ${them} = ${potentials[them] - potentials[us]} > ${maxDifference}`)

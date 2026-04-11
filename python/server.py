@@ -28,11 +28,16 @@ sockets = []
 #     WAITING_ROOM = "In a waiting room"
 #     GAME = "In game"
 #
-# class ClientSubState(Enum):
-#     WAITING = "Waiting"
+class GameState(Enum):
+    PLANNING = "Planning moves",
+    EXECUTING = "Missiles flying",
+    FINISHED = "Game over"
 
 ROOM_NAME_LENGTH = 4
 
+class PlayerAction(Enum):
+    Fire = "Fire Missile"
+    Shield = "Use Shield"
 class Message:
 
     mapping = {}
@@ -47,11 +52,26 @@ class Message:
             raise SyntaxError(f"No {property_name} in message")
 
         stringy = nh3.clean(str(self.json[property_name]))
+        #regex only alphabet characters
         pattern = re.compile('[\W_]+')
+        #apply regex
         stringy = pattern.sub('', stringy)
         if len(stringy) > max_length:
             stringy = stringy[:max_length]
         return stringy
+
+    def process_enum(self, property_name, enum):
+        value = self.process_string(property_name)
+        if value in enum:
+            return enum[value]
+        raise ValueError(f"Not a valid {enum.__name__}")
+
+    def process_number(self, property_name):
+        if property_name not in self.json:
+            raise SyntaxError(f"No {property_name} in message")
+        value = float(self.json[property_name])
+
+        return value
 
     @staticmethod
     def process_json(json_blob):
@@ -97,10 +117,21 @@ class StartGameMessage(Message):
             "player_index" : player_index
         }
 
+class PlayerPlanMessage(Message):
+    def __init__(self, json_blob):
+        super().__init__(json_blob)
+        self.angle = -1
+        self.action = self.process_enum("action", PlayerAction)
+        if self.action == PlayerAction.Fire:
+            self.angle = self.process_number("angle")
+
+
 Message.mapping["CreateRoom"]= CreateRoomMessage
 Message.mapping["ChangeName"]= ChangeNameMessage
 Message.mapping["JoinRoom"]= JoinRoomMessage
 Message.mapping["StartGame"]= StartGameMessage
+Message.mapping["PlayerPlan"]= PlayerPlanMessage
+
 class Client:
 
 
@@ -120,7 +151,7 @@ class Client:
         await self.message_processor.process_message(message, self)
 
     async def cleanup(self):
-        self.message_processor.remove_client(self)
+        await self.message_processor.remove_client(self)
 
 
 class MessageResponder:
@@ -196,8 +227,9 @@ class Room(MessageResponder):
     async def process_message(self, message, client):
         if message.type == "StartGame":
             # self.join_room(client, message)
-            await self.start_game(message)
-            print("Starting game")
+            if client == self.host:
+                await self.start_game(message)
+                print("Starting game")
         else:
             raise ValueError("Message type not applicable for current state")
 
@@ -205,21 +237,126 @@ class Room(MessageResponder):
         message.set_players(self.get_players())
         for i,client in enumerate(self.clients):
             await client.websocket.send(json.dumps(message.to_json(player_index=i)))
-        # self.broadcast(message.to_json())
+        game = Game(self.clients, self.handler, self.get_room_info())
+        self.handler.master_lobby.add_game(game)
+        for client in self.clients:
+            client.state_change(game)
 
     async def cleanup(self):
         await super().cleanup()
         #remove any references
         print(f"Room {self.name} shuttingdown")
 
+
+# class Player:
+#     def __init__(self, inde):
+
+'''
+trying to decide best approach.one game object per room
+does this break with the idea of having each state as a MessageResponder?
+
+going back to all being MessageResponders and it'll phone home to keep a list of games
+'''
+class Game(Room):
+    class Plan:
+        def __init__(self, game, message, client):
+            self.player_index = game.get_player_index(client)
+            #PlayerAction
+            self.action = message.action
+            # message object has already done these based on the message type
+            self.angle = message.angle
+        def to_json(self):
+            blob = {
+                "player": self.player_index,
+                "action": self.action.name,
+            }
+            if self.angle >= 0:
+                blob["angle"] = self.angle
+
+            return blob
+    def __init__(self, clients, handler, room_info):
+        super().__init__(clients,handler, room_info["name"], room_info["private"])
+        # [ {"colour": "rgb", "index": int, "client": clientObject/None} ]
+        self.players = []
+        i=0
+        for client in clients:
+            player = {
+                "index": i,
+                "client": client,
+                # "colour": TODO
+            }
+            self.players.append(player)
+            i+=1
+
+        # self.room_info = room_info
+        self.state = GameState.PLANNING
+        #list of lists of plans:
+        #[ {player_index: {plan message} } ]
+        self.plans = [[]]
+
+    async def process_message(self, message, client):
+        if message.type == "PlayerPlan":
+            await self.process_player_plan(message, client)
+        else:
+            raise ValueError("Message type not applicable for current state")
+
+    def get_player_index(self, client):
+        for i,player in enumerate(self.players):
+            if player.client == client:
+                return i
+        raise ValueError("plan for player that doesn't exist")
+
+    ''' send the plans to all players for the game to run'''
+    async def execute_plans(self):
+        message = {
+            "type": "ExecutePlans",
+            "plans": []
+        }
+        for plan in self.plans[-1]:
+            message["plans"].append(plan.to_json())
+        message_string = json.dumps(message)
+        self.state = GameState.EXECUTING
+        for client in self.clients:
+            await client.websocket.send(message_string)
+
+    def got_all_plans(self):
+        #got a plan for every currently connected client
+        for client in self.clients:
+            if not client in [plan.client for plan in self.plans[-1]]:
+                return False
+        return True
+
+
+    async def process_player_plan(self, message, client):
+        if self.state != GameState.PLANNING:
+            raise ValueError(f"Not in planning state, invalid to submit plan from player {self.get_player_index(client)}")
+        self.plans[-1].append(Game.Plan(self, message, client))
+        if self.got_all_plans():
+            print(f"Game {self.name} has received all plans")
+            #got all the plans for the currently connected clients (happy to skip disconnected players for now)
+            await self.execute_plans()
+
+    async def cleanup(self):
+        await super().cleanup()
+        #remove any references
+        print(f"Game {self.name} shutting down")
+
 class MasterLobby(MessageResponder):
     def __init__(self, handler):
         super().__init__([], handler)
         self.rooms = []
+        self.games = []
 
 
-    def prune_rooms(self):
+    def prune(self):
+        #TODO any reference cleanup needed in room or game?
         self.rooms = [room for room in self.rooms if room.client_count() > 0]
+        self.games = [game for game in self.games if game.client_count() > 0]
+        self.broadcast_info()
+
+    def add_game(self, game):
+        self.games.append(game)
+        self.broadcast_info()
 
     async def process_message(self, message, client):
         print(f"master lobby processing message type: {message.type}")
@@ -253,15 +390,28 @@ class MasterLobby(MessageResponder):
 
     async def create_room(self, client, message):
         room_name = ''.join(random.choice(string.ascii_uppercase) for i in range(ROOM_NAME_LENGTH))
+        self.clients.remove(client)
         room = Room(client, self.handler, room_name, message.private)
         await room.send_info()
         self.rooms.append(room)
-        self.clients.remove(client)
+
         client.state_change(room)
-        print(f"Created room {room_name}")
+        # print(f"Created room {room_name}")
+        self.broadcast_info()
 
     async def add_client(self, client):
         self.clients.append(client)
+        self.broadcast_info()
+
+    def broadcast_info(self):
+        print("Broadcasting room and game info")
+        #give all clients up to date room and game list
+        message = {
+            "type": "LobbyInfo",
+            "rooms": [room.name for room in self.rooms if not room.private],
+            "games": [game.name for game in self.games if not game.private]
+        }
+        self.broadcast(message)
 
 
 # def sanitise_string(input, max_length=20):
@@ -303,7 +453,7 @@ class ClientHandler:
 
             except:
                 # ConnectionClosed
-                self.cleanup(client)
+                await self.cleanup(client)
                 print(f"Total connected clients: {len(self.clients)}")
                 break
             try:
@@ -318,10 +468,10 @@ class ClientHandler:
                 response = {"type": "Error", "detail": "Cannot parse message"}
                 await client.websocket.send(json.dumps(response))
 
-    def cleanup(self, client):
-        client.cleanup()
+    async def cleanup(self, client):
+        await client.cleanup()
         self.clients.remove(client)
-        self.master_lobby.prune_rooms()
+        self.master_lobby.prune()
         #kick out of any rooms they were in
         # self.master_lobby.remove_client(client)
         #shut the room down if there's no-one left

@@ -9,13 +9,17 @@
 <h1>Planet Wars</h1>
 
 <div class="planet_wars hidden" id="planet_wars_game">
-<canvas id="planet_wars0" width="800" height="800" ></canvas>
-<canvas id="planet_wars1" width="800" height="800" ></canvas>
-<canvas id="planet_wars2" width="800" height="800" ></canvas>
+    <h2 id="player_info"></h2>
+    <canvas id="planet_wars0" width="800" height="800" ></canvas>
+    <canvas id="planet_wars1" width="800" height="800" ></canvas>
+    <canvas id="planet_wars2" width="800" height="800" ></canvas>
 </div>
 <div class="hidden" id="planet_wars_master_lobby">
     <h2>Master Lobby</h2>
     <label>Your Name: <input type="text" id="planet_wars_player_name" name="name" value="Unamed Player"></label>
+    <li id="room_list">
+        
+    </li>
     <form id="planet_wars_join_room_form">
         <input type="text" name="roomName">
         <input type="submit" value="Join Room">

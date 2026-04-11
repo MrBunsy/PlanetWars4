@@ -37,24 +37,61 @@ class Message{
         this.type = this.json["type"];
     }
 
-    getRawProperty(propertyName){
-        if(!(propertyName in this.json)){
+    getRawProperty(propertyName, json=null){
+        if (json === null){
+            json = this.json
+        }
+        if(!(propertyName in json)){
             throw new Error(`Message does not have property ${propertyName}`);
         }
-        return this.json[propertyName];
+        return json[propertyName];
     }
 
-    getString(propertyName){
+    getString(propertyName, json=null){
         // TODO ?
-        return this.getRawProperty(propertyName);
+        return this.getRawProperty(propertyName, json);
     }
 
-    getBoolean(propertyName){
-        return this.getRawProperty(propertyName) === true;
+    getBoolean(propertyName, json=null){
+        return this.getRawProperty(propertyName, json) === true;
     }
 
-    getInt(propertyName){
-        return parseInt(this.getRawProperty(propertyName));
+    getInt(propertyName, json=null){
+        return parseInt(this.getRawProperty(propertyName, json));
+    }
+
+    getFloat(propertyName, json=null){
+        return parseFloat(this.getRawProperty(propertyName, json));
+    }
+
+    /**
+     * For an array of an object which also dervives from Message
+     * @param {*} propertyName 
+     * @param {*} classType 
+     * @param {*} json 
+     * @returns 
+     */
+    getArrayOfObjects(propertyName, classType, json=null){
+        let jsonArray = this.getRawProperty(propertyName, json);
+        if(!Array.isArray(jsonArray)){
+            throw new Error (`${propertyName} is not an array`);
+        }
+        let processedArray = []
+        for(const jsonArrayElement of jsonArray){
+            processedArray.push(new classType(jsonArrayElement));
+        }
+        return processedArray;
+    }
+    getArrayOfStrings(propertyName, json=null){
+        let jsonArray = this.getRawProperty(propertyName, json);
+        if(!Array.isArray(jsonArray)){
+            throw new Error (`${propertyName} is not an array`);
+        }
+        let processedArray = []
+        for(let i=0; i<jsonArray.length; i++){
+            processedArray.push(this.getString(i, jsonArray));
+        }
+        return processedArray;
     }
 }
 
@@ -78,6 +115,17 @@ class RoomInfoMessage extends Message{
     }
 }
 
+class LobbyInfoMessage extends Message{
+    constructor(json){
+        super(json);
+        if (this.type != "LobbyInfo"){
+            throw new Error("Message not LobbyInfo");
+        }
+        this.rooms = this.getArrayOfStrings("rooms")
+        this.games = this.getArrayOfStrings("games")
+    }
+}
+
 class ErrorMessage extends Message{
     constructor(json){
         super(json);
@@ -97,10 +145,25 @@ class StartGameMessage extends Message{
     }
 }
 
+class Plan extends Message{
+    constructor(json){
+        super(json);
+    }
+}
+
+class ExecutePlanMessage extends Message{
+    constructor(json){
+        super(json);
+        this.plans = this.getArrayOfObjects("plans", Plan);
+    }
+}
+
 Message.mapping = {
     "RoomInfo": RoomInfoMessage,
     "Error": ErrorMessage,
     "StartGame": StartGameMessage,
+    "ExecutePlan": ExecutePlanMessage,
+    "LobbyInfo": LobbyInfoMessage,
 };
 
 /**
@@ -128,6 +191,7 @@ class MessageResponder{
     }
 
     send(messageObject){
+        console.log(`Sending: ${JSON.stringify(messageObject)}`)
         this.websocket.send(JSON.stringify(messageObject));
     }
 }
@@ -160,6 +224,7 @@ export class PlanetWarsSocketClient{
  * for now, hacky hacky with lots of document.getElementById. will think about doing properly later
  */
 class MasterLobby extends MessageResponder{
+    
     constructor(websocket, stateChangeCallback){
         super(websocket, stateChangeCallback)
 
@@ -169,21 +234,19 @@ class MasterLobby extends MessageResponder{
         this.joinForm.reset();
         this.nameBox = document.getElementById("planet_wars_player_name");
         // this.nameBox.reset();
+        this.roomListing = this.mainDiv.querySelector("#room_list")
         
         this.joinForm.onsubmit = (event) =>{
             event.preventDefault();
-            let message = {
-                "type": "JoinRoom",
-                "room": event.target.elements.roomName.value
-            }
-            this.send(message);
+            this.joinRoom(event.target.elements.roomName.value)
+            
             return false;
         }
         document.getElementById("planet_wars_create_room_form").onsubmit = (event) =>{
             event.preventDefault();
             let message = {
                 "type": "CreateRoom",
-                "private": event.target.elements.private.value == "on"
+                "private": event.target.elements.private.checked
             }
             this.send(message);
             return false;
@@ -195,7 +258,13 @@ class MasterLobby extends MessageResponder{
         // this.nameBox.onkeyup();
         // this.updateName();
     }
-
+    joinRoom(name){
+        let message = {
+            "type": "JoinRoom",
+            "room": name
+        }
+        this.send(message);
+    }
     updateName(){
         let message = {
             "type": "ChangeName",
@@ -215,6 +284,17 @@ class MasterLobby extends MessageResponder{
                 
                 this.stateChangeCallback(room);
                 return true;
+            case "LobbyInfo":
+                this.roomListing.innerHTML = ""
+                for(const room of message.rooms){
+                    let roomElement = document.createElement("li");
+                    roomElement.innerHTML = room;
+                    roomElement.onclick =(e) => {
+                        this.joinRoom(room);
+                    }
+                    this.roomListing.appendChild(roomElement);
+                }
+            return true;
         }
 
         return false;
@@ -231,8 +311,13 @@ class Game extends MessageResponder{
     constructor(websocket, stateChangeCallback, gameMessage){
         super(websocket, stateChangeCallback)
         this.gameMessage = gameMessage;
+        this.playerIndex = this.gameMessage.playerIndex
         this.mainDiv = document.getElementById("planet_wars_game");
         this.mainDiv.classList.remove("hidden");
+
+        this.playerInfoHeader = this.mainDiv.querySelector("#player_info")
+
+        
 
 
         let radius = 400;
@@ -250,13 +335,36 @@ class Game extends MessageResponder{
         this.renderer.addTrailsViewport(missileTrailsViewPort)
         
         this.renderer.renderBackground(this.world)
+        /*
+         - "PLANNING": everyone chooses their action
+         - "EXECUTING": all the actions occur at once
+         - "FINISHED": one or no players left at the end
+
+        */
+        this.state = "PLANING";
+
+        this.playerInfoHeader.innerHTML = `You are player ${this.playerIndex}`
+        this.playerInfoHeader.style=`color:${this.world.ships[this.playerIndex].colour}`
+
+        // TODO proper targetting thingy like old planet wars. temporary: just click        
+        //https://stackoverflow.com/a/42111623
+        document.getElementById('planet_wars2').onclick =(e) => {
+            let rect = e.target.getBoundingClientRect();
+            let x = e.clientX - rect.left; //x position within the element.
+            let y = e.clientY - rect.top;  //y position within the element.
+            let worldPos = missileViewPort.translateFromPixelToWorld(new Vector(x,y));
+        
+        }
+
     }
 
     processMessage(message){
         super.processMessage(message);
-        // switch(message.type){
+        switch(message.type){
+            case "ExecutePlans":
+                break;
 
-        // }
+        }
     }
 
     cleanUp(){
