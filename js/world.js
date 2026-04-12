@@ -33,8 +33,14 @@ class PlayerShip extends PhysicsEntity{
         // this.radius = radius;
         this.colour = this.colours[playerIndex];
         this.angle = this.position.angleTo(this.world.centre);
+        this.alive = true;
+        this.killedBy = null;
     }
 
+    kill(byPlayer){
+        this.alive = false;
+        this.killedBy=byPlayer;
+    }
 //     fireMissile(physics, direction){
         
 //     }
@@ -61,13 +67,18 @@ class BlackHole extends PhysicsEntity{
 }
 
 class Missile extends PhysicsEntity{
-    constructor(world, radius, position, velocity, colour){
+    constructor(world, radius, position, velocity, playerIndex){
         super(world.physics, radius, 1, position, false, velocity);
         this.world = world;
-        this.colour = colour;
+        this.playerIndex = playerIndex;
+        this.ship = world.ships[playerIndex];
+        this.colour = this.ship.colour;
     }
 
     collisionWith(otherEntity){
+        if(otherEntity instanceof PlayerShip){
+            otherEntity.kill(this.playerIndex);
+        }
         // console.log("COLLISION")
         this.physics.removeEntity(this);
         this.physics = null;
@@ -113,7 +124,7 @@ export class World{
 
     fireMissile(playerIndex, velocity){
         let position = this.ships[playerIndex].position.add(velocity.unit().multiply(this.shipRadius + this.missileRadius + 1))
-        let missile = new Missile(this, this.missileRadius,position, velocity, this.ships[playerIndex].colour);
+        let missile = new Missile(this, this.missileRadius,position, velocity, playerIndex);
         this.missiles.push(missile)
         this.physics.addEntity(missile)
 
@@ -125,6 +136,20 @@ export class World{
     removeMissile(missile){
         const index = this.missiles.indexOf(missile);
         this.missiles.splice(index,1);
+    }
+
+    getLiveMissileCount(){
+        return this.missiles.length;
+    }
+
+    getLivePlayerCount(){
+        let count = 0;
+        for(const ship of this.ships){
+            if (ship.alive){
+                count++;
+            }
+        }
+        return count;
     }
 
     generateMap(){

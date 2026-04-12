@@ -166,12 +166,31 @@ class ExecutePlansMessage extends Message{
     }
 }
 
+class PlayerInfo extends Message{
+    constructor(json){
+        super(json, true);
+        this.index = this.getInt("index");
+        this.alive = this.getBoolean("alive");
+    }
+}
+
+class ExecutionFinishedMessage extends Message{
+    constructor(json){
+        super(json);
+        this.players = this.getArrayOfObjects("players", PlayerInfo)
+        this.gameOver = this.getBoolean("gameOver")
+    }
+}
+
 Message.mapping = {
     "RoomInfo": RoomInfoMessage,
     "Error": ErrorMessage,
     "StartGame": StartGameMessage,
+    //list of every player's plan to execute simultaniously
     "ExecutePlans": ExecutePlansMessage,
     "LobbyInfo": LobbyInfoMessage,
+    //we send one to the server with our simulation results, then we get one back from the server to confirm
+    "ExecutionFinished": ExecutionFinishedMessage,
 };
 
 /**
@@ -339,7 +358,7 @@ class Game extends MessageResponder{
             radius = 500;
         }
         this.world = new World(this.gameMessage.players.length, this.gameMessage.seed, radius);
-        this.renderer = new WorldRenderer(this.gameMessage.seed);
+        this.renderer = new WorldRenderer(this.gameMessage.seed, this.world);
         let canvas_size = parseInt(document.getElementById("planet_wars0").width);
         let zoom = (canvas_size/2)/this.world.radius
         this.renderer.addBackgroundViewport(new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars0").getContext("2d"), canvas_size, canvas_size))
@@ -360,7 +379,7 @@ class Game extends MessageResponder{
 
         this.playerInfoHeader.innerHTML = `You are player ${this.playerIndex}`
         this.playerInfoHeader.style=`color:${this.world.ships[this.playerIndex].colour}`
-
+        
         // TODO proper targetting thingy like old planet wars. temporary: just click        
         //https://stackoverflow.com/a/42111623
         document.getElementById('planet_wars2').onclick =(e) => {
@@ -372,20 +391,19 @@ class Game extends MessageResponder{
         
         }
 
+        this.startPlanning()
+
+    }
+
+    startPlanning(){
+        //TODO, give player choices and let them aim, etc
+        this.state = "PLANNING";
+
     }
 
     runSimulation(){
-        //framerate
-        
-        // simulationSpeed = 2
-
         this.lastUpdateTime = performance.now();
         this.state = "EXECUTING";
-
-        // setInterval(update.bind(world.physics), delay_ms);
-        // function update(){
-            
-        // }
         setTimeout(this.updateSimulation.bind(this), this.delay_ms)
     }
 
@@ -397,9 +415,53 @@ class Game extends MessageResponder{
         for(let i =0; i<Math.floor(actualTimePassed_ms/this.physicsSteps_ms);i++){
             this.world.physics.update(this.simulationSpeed*this.physicsSteps_ms/1000, i==0);
         }
-        this.renderer.renderLive(this.world);
-        this.renderer.renderTrails(this.world);
-        setTimeout(this.updateSimulation.bind(this), this.delay_ms)
+        this.renderer.renderAllLiveViewports();
+        if (this.world.getLiveMissileCount() > 0){
+            // carry on running simulation
+            setTimeout(this.updateSimulation.bind(this), this.delay_ms)
+        }else{
+            //all missiles hit something
+            this.allMissilesFinished()
+        }
+    }
+
+    getPlayersState(){
+        let players = [];
+        for(const ship of this.world.ships){
+            let playerState = {
+                "index": ship.playerIndex,
+                "alive": ship.alive,
+            }
+            if (!ship.alive){
+                playerState["killedBy"]=ship.killedBy
+            }
+            players.push(playerState);
+        }
+        return players
+    }
+
+    allMissilesFinished(){
+        let message = {
+            "type":"ExecutionFinished",
+            "players": this.getPlayersState(),
+            //message conclusion will probably be ignored as server evalates its own decision?
+            "gameOver": this.world.getLivePlayerCount() <= 1
+        }
+
+        // if(this.world.getLivePlayerCount() > 1){
+        //     console.log("Missiles finished, players still alive, back to planning stage")
+        //     message["nextState"]= "PLANNING";
+        //     this.startPlanning();
+        // }else{
+        //     //everybody's dead, dave.
+        //     // this.finishGame();
+        //     message["conclusion"]= "FINISHED";
+        // }
+        this.send(message)
+    }
+
+    finishGame(){
+        this.state = "FINISHED"
     }
 
     clickedHere(worldPos){
@@ -422,6 +484,12 @@ class Game extends MessageResponder{
             case "ExecutePlans":
                 this.executePlan(message);
                 break;
+            case "ExecutionFinished":
+                if(message.gameOver){
+                    //TODO
+                }else{
+                    this.startPlanning();
+                }
 
         }
     }

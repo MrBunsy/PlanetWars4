@@ -156,6 +156,16 @@ export class PhysicsEngine{
         this.entities.splice(index,1);
     }
 
+    getMovableEntityCount(){
+        let count = 0;
+        for(const entity of this.entities){
+            if (!entity.immobile){
+                count++;
+            }
+        }
+        return count;
+    }
+
     /**
      * Given a ship, work out how far "out" a missile can go from the centre of the map
      * Aproximately correct. Slightly underestimates. Multiplying by 1.5 appears to be roughly right.

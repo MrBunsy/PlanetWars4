@@ -42,9 +42,10 @@ class Message:
 
     mapping = {}
 
-    def __init__(self, json_blob):
+    def __init__(self, json_blob, not_full_message=False):
         self.json = json_blob
-        self.type = self.process_string("type")
+        if not not_full_message:
+            self.type = self.process_string("type")
 
         
     def process_string(self, property_name, max_length=20):
@@ -69,12 +70,37 @@ class Message:
         except:
             raise ValueError(f"Not a valid {enum.__name__}")
 
-    def process_number(self, property_name):
+    def process_float(self, property_name):
         if property_name not in self.json:
             raise SyntaxError(f"No {property_name} in message")
         value = float(self.json[property_name])
 
         return value
+
+    def process_int(self, property_name):
+        if property_name not in self.json:
+            raise SyntaxError(f"No {property_name} in message")
+        value = int(self.json[property_name])
+
+        return value
+
+    def process_boolean(self, property_name):
+        if property_name not in self.json:
+            raise SyntaxError(f"No {property_name} in message")
+        value = bool(self.json[property_name])
+
+        return value
+
+    def process_array(self, property_name, object_class):
+        if property_name not in self.json:
+            raise SyntaxError(f"No {property_name} in message")
+        array_in = self.json[property_name]
+        array_out = []
+        if isinstance(array_in, list):
+            for element in array_in:
+                array_out.append(object_class(element))
+        return array_out
+
 
     @staticmethod
     def process_json(json_blob):
@@ -126,7 +152,35 @@ class PlayerPlanMessage(Message):
         self.angle = 0
         self.action = self.process_enum("action", PlayerAction)
         if self.action == PlayerAction.Fire:
-            self.angle = self.process_number("angle")
+            self.angle = self.process_float("angle")
+
+class ExecutionFinishedMessage(Message):
+    '''
+    After all the missiles have flown
+    '''
+
+    class PlayerState(Message):
+        def __init__(self, json_blob):
+            super().__init__(json_blob, not_full_message=True)
+            self.index = self.process_int("index")
+            self.alive = self.process_boolean("alive")
+        def to_json(self):
+            return {
+                "index": self.index,
+                "alive": self.alive
+            }
+
+    def __init__(self, json_blob):
+        super().__init__(json_blob)
+        self.players = self.process_array("players", ExecutionFinishedMessage.PlayerState)
+        self.game_over = self.process_boolean("gameOver")
+
+    def to_json(self):
+        return {
+            "type": "ExecutionFinished",
+            "gameOver": self.game_over,
+            "players": [player.to_json() for player in self.players]
+        }
 
 
 Message.mapping["CreateRoom"]= CreateRoomMessage
@@ -134,6 +188,7 @@ Message.mapping["ChangeName"]= ChangeNameMessage
 Message.mapping["JoinRoom"]= JoinRoomMessage
 Message.mapping["StartGame"]= StartGameMessage
 Message.mapping["PlayerPlan"]= PlayerPlanMessage
+Message.mapping["ExecutionFinished"]= ExecutionFinishedMessage
 
 class Client:
 
@@ -181,6 +236,8 @@ class MessageResponder:
 
     def broadcast(self, message):
         broadcast([client.websocket for client in self.clients], json.dumps(message))
+
+
 
 
 class Room(MessageResponder):
@@ -267,20 +324,78 @@ class Game(MessageResponder):
     class Plan:
         def __init__(self, message, player_index):
             self.player_index = player_index
-            # PlayerAction
-            self.action = message.action
-            # message object has already done these based on the message type
-            self.angle = message.angle
+            # # PlayerAction
+            self.message = message
+            # self.action = message.action
+            # # message object has already done these based on the message type
+            # self.angle = message.angle
         def to_json(self):
             blob = {
                 "player": self.player_index,
-                "action": self.action.name,
-                "angle": self.angle
+                "action": self.message.action.name,
+                "angle": self.message.angle
             }
             # if self.angle >= 0:
             #     blob["angle"] = self.angle
 
             return blob
+    #
+    # class Result:
+    #     '''
+    #     ties a ExecutionFinished message to a player index
+    #
+    #     '''
+    #     def __init__(self, message, player_index):
+    #         self.players = message.players[:]
+    #         self.player_index = player_index
+    class TurnResult:
+        def __init__(self, message, player_index):
+            self.message = message
+            self.player_index = player_index
+
+        def alive_players(self):
+            alive = []
+            for player in self.message.players:
+                if player.alive:
+                    alive.append(player.index)
+            return alive
+
+
+        def compare(self, another_result):
+            #TODO, more thoroughly check results from other players are actually the same
+            return len(self.alive_players()) == len(another_result.alive_players()) and self.message.game_over == another_result.message.game_over
+            # if another_result.message.players
+
+    class Turn:
+        def __init__(self):
+            self.plans = []
+            self.results = []
+
+        def add_plan(self, plan):
+            '''
+
+            :param plan: a Plan with PlayerPlan message
+            :return:
+            '''
+            for existing_plan in self.plans:
+                if existing_plan.player_index == plan.player_index:
+                    raise ValueError("Already received plan for this player")
+            self.plans.append(plan)
+
+        def add_result(self, result):
+            '''
+            a Result with ExecutionFinished message
+            :param result:
+            :return:
+            '''
+            for existing_result in self.results:
+                if existing_result.player_index == result.player_index:
+                    raise ValueError("Already received result for this player")
+            if len(self.results) > 0:
+                if not self.results[0].compare(result):
+                    raise ValueError("Result doesn't agree with other received results.")
+            self.results.append(result)
+
 
     def __init__(self, clients, handler, room_info):
         super().__init__(clients,handler)
@@ -302,16 +417,48 @@ class Game(MessageResponder):
         # self.room_info = room_info
         self.state = GameState.PLANNING
         #list of lists of plans:
-        self.plans = [[]]
+        # self.plans = [[]]
+        self.turns = [Game.Turn()]
 
     async def process_message(self, message, client):
         if message.type == "PlayerPlan":
             await self.process_player_plan(message, client)
+        elif message.type == "ExecutionFinished":
+            await self.process_execution_finished(message, client)
         else:
             raise ValueError("Message type not applicable for current state")
 
+    async def process_execution_finished(self, message, client):
+        if self.state != GameState.EXECUTING:
+            raise ValueError(f"Not in executing state, invalid to submit results from player {self.get_player_index(client)}")
+        self.turns[-1].add_result(Game.TurnResult(message, self.get_player_index(client)))
+        if self.got_from_all_players(self.turns[-1].results):
+            await self.finish_execution()
+
+    async def finish_execution(self):
+        '''
+        if there are multiple players still alive, go back to planning and continue the round
+        :return:
+        '''
+        game_over = len(self.turns[-1].results[0].alive_players()) <= 1
+        print(f"Alive players: {self.turns[-1].results[0].alive_players()}")
+        if game_over:
+            print(f"Game {self.name} finished! ")
+            #TODO
+
+        if game_over != self.turns[-1].results[0].message.game_over:
+            raise ValueError("Doesn't look like there are enough players left alive for the game to not be over?")
+
+        self.broadcast(self.turns[-1].results[0].message.to_json())
+        self.turns.append(Game.Turn())
+        if game_over:
+            self.state = GameState.FINISHED
+        else:
+            self.state = GameState.PLANNING
+
+
+
     def get_player_index(self, client):
-        print(f"get_player index for client: {client}")
         clients = [player["client"] for player in self.players]
         try:
             index = clients.index(client)
@@ -325,18 +472,17 @@ class Game(MessageResponder):
             "type": "ExecutePlans",
             "plans": []
         }
-        for plan in self.plans[-1]:
+        for plan in self.turns[-1].plans:
             message["plans"].append(plan.to_json())
         message_string = json.dumps(message)
         self.state = GameState.EXECUTING
         for client in self.clients:
             await client.websocket.send(message_string)
 
-    def got_all_plans(self):
+    def got_from_all_players(self, got_from_list):
         #got a plan for every currently connected client
-        ready_player_indexes = [plan.player_index for plan in self.plans[-1]]
+        ready_player_indexes = [plan.player_index for plan in got_from_list]
         for client in self.clients:
-            print(f"got_all_plans, checking client {client}")
             if self.get_player_index(client) not in ready_player_indexes:
                 return False
         return True
@@ -345,9 +491,8 @@ class Game(MessageResponder):
     async def process_player_plan(self, message, client):
         if self.state != GameState.PLANNING:
             raise ValueError(f"Not in planning state, invalid to submit plan from player {self.get_player_index(client)}")
-        print(f"message: {message}, client: {client}, players: {self.players}. clients: {self.clients}")
-        self.plans[-1].append(Game.Plan(message, self.get_player_index(client)))
-        if self.got_all_plans():
+        self.turns[-1].add_plan(Game.Plan(message, self.get_player_index(client)))
+        if self.got_from_all_players(self.turns[-1].plans):
             print(f"Game {self.name} has received all plans")
             #got all the plans for the currently connected clients (happy to skip disconnected players for now)
             await self.execute_plans()

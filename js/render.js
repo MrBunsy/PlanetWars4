@@ -36,12 +36,13 @@ export class Viewport{
  *  out of the circle, or to limit renderer to a circle?
  */
 export class WorldRenderer{
-    constructor(seed){
+    constructor(seed, world){
         this.backgroundViewports = [];
         this.liveViewports = [];
         this.trailsViewports = [];
         this.random = new SeededRandom(seed);
         this.stars = 60;
+        this.world = world;
     }
 
     addBackgroundViewport(viewport){
@@ -211,6 +212,15 @@ export class WorldRenderer{
                 }
             }
         }
+    }
+
+    /**
+     * I'm not sure why I decided to be able to pass world into render - did I want to be able to spectate multiple games at once?
+     * anywhere here's a helper function for a single game
+     */
+    renderAllLiveViewports(){
+        this.renderTrails(this.world);
+        this.renderLive(this.world);
     }
 
     /**
