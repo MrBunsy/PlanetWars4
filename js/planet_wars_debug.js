@@ -60,6 +60,7 @@ function clickEvent(e) {
         let test = {"fire": {"velocity":velocity, "player": ship.playerIndex}, }
         // socket.send(JSON.stringify(test))
     }
+    renderer.dimTrails();
     }
 
 //https://stackoverflow.com/a/42111623

@@ -152,6 +152,16 @@ export class World{
         return count;
     }
 
+    getLivePlayerIndexes(){
+        let players = [];
+        for(const ship of this.ships){
+            if (ship.alive){
+                players.push(ship.playerIndex)
+            }
+        }
+        return players;
+    }
+
     generateMap(){
         let attempts = 0;
         do{

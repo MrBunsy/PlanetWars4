@@ -342,7 +342,8 @@ class Game extends MessageResponder{
         this.mainDiv = document.getElementById("planet_wars_game");
         this.mainDiv.classList.remove("hidden");
 
-        this.playerInfoHeader = this.mainDiv.querySelector("#player_info")
+        this.playerInfoHeader = this.mainDiv.querySelector("#player_info");
+        this.gameStatusHeader = this.mainDiv.querySelector("#game_status");
 
         this.fps = 30;
         this.delay_ms = 1000/this.fps;
@@ -398,12 +399,16 @@ class Game extends MessageResponder{
     startPlanning(){
         //TODO, give player choices and let them aim, etc
         this.state = "PLANNING";
+        this.gameStatusHeader.innerHTML = "Click to choose where to fire a missile."
 
     }
 
     runSimulation(){
         this.lastUpdateTime = performance.now();
         this.state = "EXECUTING";
+        this.gameStatusHeader.innerHTML = "Missiles are flying! Wait for them to hit something"
+        //dim the old trails a bit
+        this.renderer.dimTrails();
         setTimeout(this.updateSimulation.bind(this), this.delay_ms)
     }
 
@@ -462,6 +467,14 @@ class Game extends MessageResponder{
 
     finishGame(){
         this.state = "FINISHED"
+        let survivors = this.world.getLivePlayerIndexes();
+        let blurb = "Everybody's Dead, Dave";
+        if (survivors.length > 0){
+            blurb = `Player ${survivors[0]} won!`
+        }
+
+
+        this.gameStatusHeader.innerHTML = `Game over: ${blurb}`;
     }
 
     clickedHere(worldPos){
@@ -486,7 +499,7 @@ class Game extends MessageResponder{
                 break;
             case "ExecutionFinished":
                 if(message.gameOver){
-                    //TODO
+                    this.finishGame();
                 }else{
                     this.startPlanning();
                 }

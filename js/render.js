@@ -199,6 +199,21 @@ export class WorldRenderer{
         }
     }
 
+    dimTrails(dimBy=0.9){
+        //decrease opacity of trails to slowly fade old trails
+        for(const viewport of this.trailsViewports){
+            if(viewport.enabled){
+                const imageData = viewport.canvas.getImageData(0, 0, viewport.width, viewport.height)
+                const data = imageData.data;
+                // data is r,g,b,a 
+                for(let i =0; i<data.length; i+=4){
+                    data[i+3] = Math.floor(data[i+3]*dimBy);
+                }
+                viewport.canvas.putImageData(imageData, 0, 0);
+            }
+        }
+    }
+
     renderLive(world){
         for(const viewport of this.liveViewports){
             if(viewport.enabled){
