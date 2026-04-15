@@ -23,6 +23,14 @@ export class Viewport{
     translateFromPixelToWorld(pixelPosition){
         return pixelPosition.multiply(1/this.zoom).add(this.topLeftInWorld)
     }
+
+    clear(){
+        this.canvas.clearRect(0, 0, this.width, this.height);
+    }
+
+    centrePixel(n){
+        return Math.ceil(n-0.5);
+    }
 }
 
 /**
@@ -213,11 +221,100 @@ export class WorldRenderer{
             }
         }
     }
+    /**
+     * 
+     * @param {*} viewport 
+     * @param {*} ship 
+     * @param {*} angle 
+     * @param {*} previousAngles  list of previously fired shots, NEWEST first
+     */
+    renderAimingRecepticle(viewport, ship, angle, previousAngles){
+        viewport.clear();
+        const centre = viewport.translate(ship.position);
+        const radius = 100;
+        const lineRadius = 110;
+        const textHeight=15;
+        const textRadius = lineRadius + textHeight*0.75;
+
+        //blank out the old ship in the background
+        viewport.canvas.beginPath();
+        viewport.canvas.fillStyle="rgb(0,0,0)";
+        viewport.canvas.arc(centre.x, centre.y,ship.radius*1.2*viewport.zoom,0,Math.PI*2,true);
+        viewport.canvas.fill();
+
+        //grey circle
+        viewport.canvas.beginPath();
+        viewport.canvas.fillStyle="rgba(32,32,32,0.85)";
+        viewport.canvas.arc(centre.x ,centre.y, radius, 0, Math.PI*2, true);
+        viewport.canvas.fill();
+
+        //white lines
+        viewport.canvas.beginPath();
+        viewport.canvas.lineWidth=1;
+        viewport.canvas.strokeStyle="rgba(255,255,255,0.75)";
+        viewport.canvas.lineCap = "round";
+        viewport.canvas.arc(centre.x ,centre.y, radius, 0, Math.PI*2, true);
+        //vertical line
+        viewport.canvas.moveTo(viewport.centrePixel(centre.x - lineRadius) , viewport.centrePixel(centre.y));
+        viewport.canvas.lineTo(viewport.centrePixel(centre.x + lineRadius) , viewport.centrePixel(centre.y));
+        //horizontal
+        viewport.canvas.moveTo(viewport.centrePixel(centre.x) , viewport.centrePixel(centre.y - lineRadius));
+        viewport.canvas.lineTo(viewport.centrePixel(centre.x) , viewport.centrePixel(centre.y + lineRadius));
+        viewport.canvas.stroke();
+
+        
+
+        viewport.canvas.textAlign="center";
+        viewport.canvas.textBaseline = "middle";
+        viewport.canvas.font = `${textHeight}px Gill Sans`;
+        viewport.canvas.fillStyle="rgb(255,255,255)";
+        // text
+        // left
+        viewport.canvas.fillText('270', centre.x - textRadius, centre.y);
+        // right
+        viewport.canvas.fillText('090', centre.x + textRadius, centre.y);
+        // top
+        viewport.canvas.fillText('000', centre.x , centre.y- textRadius + textHeight/4);
+        //bottom
+        viewport.canvas.fillText('180', centre.x , centre.y + textRadius - textHeight/4);
+
+        // old shot markers
+        let alpha = 1.0;
+        for(const oldAngle of previousAngles){
+            viewport.canvas.beginPath();
+            viewport.canvas.fillStyle=ship.colour.toString(alpha);
+            const pos = centre.add(polar(oldAngle, radius));
+            viewport.canvas.arc(pos.x ,pos.y, 3, 0, Math.PI*2, true);
+            viewport.canvas.fill();
+            alpha *= 0.8;
+        }
+
+
+        //arrow
+        const lefttip = centre.add(polar(angle-Math.PI/32, radius*0.91));
+        const tip = centre.add(polar(angle,radius));
+        const righttip = centre.add(polar(angle+Math.PI/32, radius*0.91));
+
+        viewport.canvas.beginPath();
+        viewport.canvas.strokeStyle=ship.colour.toString(0.75);
+        viewport.canvas.moveTo(lefttip.x, lefttip.y);
+        viewport.canvas.lineTo(tip.x, tip.y);
+        viewport.canvas.lineTo(righttip.x, righttip.y);
+        viewport.canvas.stroke();
+
+        viewport.canvas.beginPath();
+        viewport.canvas.moveTo(centre.x, centre.y);
+        viewport.canvas.lineTo(tip.x, tip.y);
+        viewport.canvas.stroke();
+        
+
+        this.drawShip(ship, viewport, angle);
+    }
 
     renderLive(world){
         for(const viewport of this.liveViewports){
             if(viewport.enabled){
-                viewport.canvas.clearRect(0, 0, viewport.width, viewport.height);
+                viewport.clear();
                 for(const missile of world.missiles){
                     let pixelPosition = viewport.translate(missile.position);
                     viewport.canvas.beginPath();
@@ -243,12 +340,14 @@ export class WorldRenderer{
      * @param {*} ship 
      * @param {*} viewport 
      */
-    drawShip=function(ship, viewport)
+    drawShip=function(ship, viewport, angle=undefined)
     {
 
             let r=ship.radius;	
             // let tempPos=new Array(2);
-            let angle = ship.angle;
+            if (angle === undefined){
+                angle = ship.angle;
+            }
             
             // tempPos[0]=pos[0]+Math.cos(angle)*r*0.1;
             // tempPos[1]=pos[1]+Math.sin(angle)*r*0.1;

@@ -2,6 +2,7 @@
 
 import { SeededRandom, Vector, polar } from "./geometry.js";
 import { PhysicsEngine, PhysicsEntity } from "./physics.js";
+import { Colour } from "./colour.js"
 
 /***
  * 
@@ -14,16 +15,24 @@ import { PhysicsEngine, PhysicsEntity } from "./physics.js";
 
 class PlayerShip extends PhysicsEntity{
     colours = [
-        "rgb(255,0,0)",
-        "rgb(0,0,255)",
-        "rgb(255,255,0)",
-        "rgb(0,255,0)",       
-        "rgb(127,0,200)",
-        "rgb(255,127,0)",
-        "rgb(64, 224, 208)",
-        "rgb(255,127,255)",
-        "rgb(150, 75, 0)",
-        
+        // "rgb(255,0,0)",
+        // "rgb(0,0,255)",
+        // "rgb(255,255,0)",
+        // "rgb(0,255,0)",       
+        // "rgb(127,0,200)",
+        // "rgb(255,127,0)",
+        // "rgb(64, 224, 208)",
+        // "rgb(255,127,255)",
+        // "rgb(150, 75, 0)",
+        new Colour(255,0,0),
+        new Colour(0,0,255),
+        new Colour(255,255,0),
+        new Colour(0,255,0),       
+        new Colour(127,0,200),
+        new Colour(255,127,0),
+        new Colour(64, 224, 208),
+        new Colour(255,127,255),
+        new Colour(150, 75, 0),
 
     ]
     constructor(world, position, playerIndex, radius){

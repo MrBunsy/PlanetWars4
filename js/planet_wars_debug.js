@@ -45,7 +45,7 @@ renderer.renderBackground(world)
 // let socket = new WebSocket("https://planetwars.lukewallin.co.uk/ws");
 
 
-function clickEvent(e) {
+function clickEventFire(e) {
       // e = Mouse click event.
     let rect = e.target.getBoundingClientRect();
     let x = e.clientX - rect.left; //x position within the element.
@@ -63,6 +63,19 @@ function clickEvent(e) {
     renderer.dimTrails();
     }
 
+let oldAngles = []
+
+function clickEvent(e){
+    let rect = e.target.getBoundingClientRect();
+    let x = e.clientX - rect.left; //x position within the element.
+    let y = e.clientY - rect.top;  //y position within the element.
+    // console.log("Left? : " + x + " ; Top? : " + y + ".");
+    let worldPos = missileViewPort.translateFromPixelToWorld(new Vector(x,y));
+    const ship = world.ships[0]
+    const angle = ship.position.angleTo(worldPos);
+    renderer.renderAimingRecepticle(missileTrailsViewPort, ship, angle, oldAngles)
+    oldAngles.unshift(angle);
+}
 //https://stackoverflow.com/a/42111623
 document.getElementById('planet_wars2').onclick = clickEvent;
 
@@ -141,6 +154,8 @@ for(const ship of world.ships){
     }
 
 }
+
+
 
 // let x = world.maxMissileSpeed/world.physics.getEscapeVelocity(world.ships[0].position);
 // let R = world.physics.getCentreOfMass().subtract(world.ships[0].position).magnitude();
