@@ -165,6 +165,10 @@ export class PlanetWarsMatch{
             this.missileAimLoop();
             this.mouseDown = false;
         };
+
+        this.fireControlAngleInput.addEventListener("input", (event)=>{
+            this.drawAimRecepticle(this.firingPlayer, event.target.value)
+        })
     }
 
     userFiresMissile(){
