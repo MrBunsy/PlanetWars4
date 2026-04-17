@@ -99,7 +99,7 @@ export class World{
     /***
      * Holds the state of the world and will interact with the physics engine to run a single match
      */
-    constructor(players, seed, radius=400,planetMinR=20, planetMaxR=50, shipRadius=10, missileRadius=1, blackHoleRadius=5, maxMissileSpeed=100){
+    constructor(players, seed, radius=400, maxRadius=-1, planetMinR=20, planetMaxR=50, shipRadius=10, missileRadius=1, blackHoleRadius=5, maxMissileSpeed=100){
         
         this.playerCount = players;
         this.random = new SeededRandom(seed);
@@ -122,7 +122,12 @@ export class World{
         this.ships = [];
         this.planets = [];
 
-        this.physics = new PhysicsEngine();
+        this.maxRadius = radius*1.5;
+        if(maxRadius > 0){
+            this.maxRadius = maxRadius;
+        }
+
+        this.physics = new PhysicsEngine(this.maxRadius);
         this.centre = new Vector(0,0);
 
         this.missiles = []
@@ -175,7 +180,7 @@ export class World{
         let attempts = 0;
         do{
             this.physics.release()
-            this.physics = new PhysicsEngine();
+            this.physics = new PhysicsEngine(this.maxRadius);
             this.generateShips();
             this.generatePlanets(this.playerCount + 3);
             // this.generatePlanets(1);

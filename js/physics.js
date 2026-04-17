@@ -44,8 +44,10 @@ export class PhysicsEngine{
     //F=-bV (drag), friction=b
     friction=0;//0.01;
 
-    constructor() {
+    constructor(maxRadius=-1) {
         this.entities = [];
+        // if > 0, call a collision with null for any object which travels beyond this
+        this.maxRadius=maxRadius;
     }
 
     eulerFindVelocity(velocity,acceleration,time)
@@ -111,6 +113,11 @@ export class PhysicsEngine{
                     // collision!
                     this.collision(entity, otherEntity);
                 }
+            }
+
+            if(this.maxRadius > 0 && entity.position.magnitudeSquared() > Math.pow(this.maxRadius,2)){
+                //hit the edge of the world
+                entity.collisionWith(null);
             }
 
             if (!entity.immobile && updateOldPosition){

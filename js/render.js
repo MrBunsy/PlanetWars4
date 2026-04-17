@@ -314,13 +314,38 @@ export class WorldRenderer{
     renderLive(world){
         for(const viewport of this.liveViewports){
             if(viewport.enabled){
+                let viewportEdgeRadius = viewport.width*0.5/viewport.zoom;
                 viewport.clear();
                 for(const missile of world.missiles){
-                    let pixelPosition = viewport.translate(missile.position);
-                    viewport.canvas.beginPath();
-                    viewport.canvas.arc(pixelPosition.x, pixelPosition.y, missile.radius*viewport.zoom*3, 0, Math.PI*2, true)
-                    viewport.canvas.fillStyle=missile.colour;
-                    viewport.canvas.fill();
+                    let missileRadius = missile.radius*viewport.zoom*3;
+                
+                    //just a tiny bit further
+                    let maxDistanceSqrd = Math.pow(viewportEdgeRadius + missileRadius, 2);
+
+                    if (missile.position.magnitudeSquared() < maxDistanceSqrd){
+                        let pixelPosition = viewport.translate(missile.position);
+                        viewport.canvas.beginPath();
+                        viewport.canvas.arc(pixelPosition.x, pixelPosition.y, missileRadius, 0, Math.PI*2, true)
+                        viewport.canvas.fillStyle=missile.colour;
+                        viewport.canvas.fill();
+                    }else{
+                        //draw a little arrow
+                        const arrowLength = 20;
+                        let angleFromCentre = new Vector(0,0).angleTo(missile.position);
+                        let edgePosPixel = viewport.translate(polar(angleFromCentre, viewportEdgeRadius));
+                        let arrowTailPosPixel = viewport.translate(polar(angleFromCentre, viewportEdgeRadius - arrowLength/viewport.zoom));
+                        let leftTip = edgePosPixel.add(polar(angleFromCentre + Math.PI*0.75, arrowLength*0.2))
+                        let rightTip = edgePosPixel.add(polar(angleFromCentre - Math.PI*0.75, arrowLength*0.2))
+                        viewport.canvas.beginPath();
+                        viewport.canvas.moveTo(arrowTailPosPixel.x, arrowTailPosPixel.y);
+                        viewport.canvas.lineTo(edgePosPixel.x, edgePosPixel.y);
+                        viewport.canvas.moveTo(leftTip.x, leftTip.y);
+                        viewport.canvas.lineTo(edgePosPixel.x, edgePosPixel.y);
+                        viewport.canvas.lineTo(rightTip.x, rightTip.y);
+                        viewport.canvas.strokeStyle=missile.colour;
+                        viewport.canvas.lineWidth=2;
+                        viewport.canvas.stroke();
+                    }
                 }
             }
         }

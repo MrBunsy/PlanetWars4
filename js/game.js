@@ -105,7 +105,12 @@ export class PlanetWarsMatch{
         //provide options
         this.actionChooserDiv.classList.remove("hidden");
         this.actionChooserDiv.innerHTML="Choose Move:"
-        for (const action of player.getAvailableActions()){
+        let actions = player.getAvailableActions();
+        if(actions.length == 1 && actions[0] == "missile"){
+            //skip the options and go straight to aiming
+            this.planMoveStage2(player, actions[0]);
+        }
+        for (const action of actions){
             let button = document.createElement("button");
             button.value=action;
             button.innerHTML = action;
