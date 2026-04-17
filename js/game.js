@@ -284,7 +284,7 @@ export class PlanetWarsMatch{
             this.drawAimRecepticle(this.firingPlayer, parseFloat(newAngleString));
             this.fireControlAngleInput.value = newAngleString;
         }
-        console.log(`mousePos: ${this.mousePos}, mousePosWorld: ${mousePosWorld}, newangle: ${newAngleString}`)
+        // console.log(`mousePos: ${this.mousePos}, mousePosWorld: ${mousePosWorld}, newangle: ${newAngleString}`)
 
 
     }

@@ -18,7 +18,7 @@ import { PlanetWarsMatch, Player } from './game.js';
  */
 
 let seed = Math.round(Math.random()*10000);//3;//11;
-
+// two player seed: 433807
 // seed = 2241;
 // seed = 8655;
 // seed = 4111;

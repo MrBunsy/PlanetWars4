@@ -140,10 +140,7 @@ class StartGameMessage extends Message{
     constructor(json){
         super(json);
         this.seed = this.getInt("seed")
-        this.players = this.getRawProperty("players");
-        if(!Array.isArray(this.players)){
-            throw new Error ("players is not an array");
-        }
+        this.players = this.getArrayOfStrings("players");
         this.playerIndex = this.getInt("player_index");
     }
 }
@@ -349,7 +346,7 @@ class Game extends MessageResponder{
         
         this.players = []
         for(let i=0; i<this.gameMessage.players.length;i++){
-            this.players.push(new Player(i, `Player ${i}`));
+            this.players.push(new Player(i,this.gameMessage.players[i]));
         }
 
         this.game = new PlanetWarsMatch(this.mainDiv.querySelector("#game_div"), this.players);
@@ -371,7 +368,7 @@ class Game extends MessageResponder{
         */
         this.state = "PLANNING";
 
-        this.playerInfoHeader.innerHTML = `You are player ${this.playerIndex}`
+        this.playerInfoHeader.innerHTML = `You are player ${this.playerIndex}: ${this.players[this.playerIndex].name}`
         this.playerInfoHeader.style=`color:${this.game.world.ships[this.playerIndex].colour}`
         
         // TODO proper targetting thingy like old planet wars. temporary: just click        
@@ -459,7 +456,7 @@ class Game extends MessageResponder{
         let survivors = this.game.getLivePlayerIndexes();
         let blurb = "Everybody's Dead, Dave";
         if (survivors.length > 0){
-            blurb = `Player ${survivors[0]} won!`
+            blurb = `Player ${this.players[survivors[0]].name} won!`
         }
 
 
