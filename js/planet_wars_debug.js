@@ -3,6 +3,7 @@
 import {World} from './world.js'
 import {WorldRenderer, Viewport} from './render.js'
 import {Vector} from './geometry.js'
+import { PlanetWarsMatch, Player } from './game.js';
 
 /**
  * 
@@ -27,86 +28,121 @@ let seed = Math.round(Math.random()*10000);//3;//11;
 seed = 983;
 console.log(seed)
 
-let world = new World(6, seed, 500, 30, 80);
-let renderer = new WorldRenderer(seed);
+let playerCount = 2;
 
-let zoom = 400/world.radius
-// zoom = 0.5;
-renderer.addBackgroundViewport(new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars0").getContext("2d"), 800, 800))
-let missileTrailsViewPort = new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars1").getContext("2d"), 800, 800);
-let missileViewPort = new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars2").getContext("2d"), 800, 800);
-renderer.addLiveViewport(missileViewPort);
-renderer.addTrailsViewport(missileTrailsViewPort)
+let players = [];
+for (let i =0; i<playerCount;i++){
+    let player = new Player(i,`Player ${i}`);
+    // player.setShip(world.ships[i]);
+    players.push(player);
 
-renderer.renderBackground(world)
+}
+
+
+// let world = new World(playerCount, seed, 500, 30, 80);
+
+
+
+let game = new PlanetWarsMatch(document.getElementById("planet_wars_game"), players)
+
+game.newRound(seed);
+
+game.planMove(players[0]);
+
+let currentPlayer = 0;
+
+game.setPlayerFireMissileCallback((player, angle)=> {
+    game.shipFiresMissile(player, angle);
+    
+    // game.planMove(players[currentPlayer]);
+    game.runSimulation();
+})
+
+game.setSimulationFinishedCallback(() =>{
+    currentPlayer++;
+    currentPlayer%=game.players.length;
+    game.planMove(players[currentPlayer]);
+})
+
+// let renderer = new WorldRenderer(seed);
+
+// let zoom = 400/world.radius
+// // zoom = 0.5;
+// renderer.addBackgroundViewport(new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars0").getContext("2d"), 800, 800))
+// let missileTrailsViewPort = new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars1").getContext("2d"), 800, 800);
+// let missileViewPort = new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars2").getContext("2d"), 800, 800);
+// renderer.addLiveViewport(missileViewPort);
+// renderer.addTrailsViewport(missileTrailsViewPort)
+
+// renderer.renderBackground(world)
 
 
 // world.fireMissile(0, new Vector(-10,-10)); 
 // let socket = new WebSocket("https://planetwars.lukewallin.co.uk/ws");
 
 
-function clickEventFire(e) {
-      // e = Mouse click event.
-    let rect = e.target.getBoundingClientRect();
-    let x = e.clientX - rect.left; //x position within the element.
-    let y = e.clientY - rect.top;  //y position within the element.
-    // console.log("Left? : " + x + " ; Top? : " + y + ".");
-    let worldPos = missileViewPort.translateFromPixelToWorld(new Vector(x,y));
+// function clickEventFire(e) {
+//       // e = Mouse click event.
+//     let rect = e.target.getBoundingClientRect();
+//     let x = e.clientX - rect.left; //x position within the element.
+//     let y = e.clientY - rect.top;  //y position within the element.
+//     // console.log("Left? : " + x + " ; Top? : " + y + ".");
+//     let worldPos = missileViewPort.translateFromPixelToWorld(new Vector(x,y));
 
-    for(const ship of world.ships){
-        let velocity = worldPos.subtract(ship.position).unit().multiply(world.maxMissileSpeed);
-        world.fireMissile(ship.playerIndex, velocity);
+//     for(const ship of game.world.ships){
+//         let velocity = worldPos.subtract(ship.position).unit().multiply(world.maxMissileSpeed);
+//         game.world.fireMissile(ship.playerIndex, velocity);
 
-        let test = {"fire": {"velocity":velocity, "player": ship.playerIndex}, }
-        // socket.send(JSON.stringify(test))
-    }
-    renderer.dimTrails();
-    }
+//         let test = {"fire": {"velocity":velocity, "player": ship.playerIndex}, }
+//         // socket.send(JSON.stringify(test))
+//     }
+//     renderer.dimTrails();
+//     }
 
-let oldAngles = []
+// let oldAngles = []
 
-function clickEvent(e){
-    let rect = e.target.getBoundingClientRect();
-    let x = e.clientX - rect.left; //x position within the element.
-    let y = e.clientY - rect.top;  //y position within the element.
-    // console.log("Left? : " + x + " ; Top? : " + y + ".");
-    let worldPos = missileViewPort.translateFromPixelToWorld(new Vector(x,y));
-    const ship = world.ships[0]
-    const angle = ship.position.angleTo(worldPos);
-    renderer.renderAimingRecepticle(missileTrailsViewPort, ship, angle, oldAngles)
-    oldAngles.unshift(angle);
-}
+// function clickEvent(e){
+//     let rect = e.target.getBoundingClientRect();
+//     let x = e.clientX - rect.left; //x position within the element.
+//     let y = e.clientY - rect.top;  //y position within the element.
+//     // console.log("Left? : " + x + " ; Top? : " + y + ".");
+//     let worldPos = missileViewPort.translateFromPixelToWorld(new Vector(x,y));
+//     const ship = world.ships[0]
+//     const angle = ship.position.angleTo(worldPos);
+//     // renderer.renderAimingRecepticle(missileTrailsViewPort, ship, angle, oldAngles)
+//     oldAngles.unshift(angle);
+// }
 //https://stackoverflow.com/a/42111623
-document.getElementById('planet_wars2').onclick = clickEvent;
+// document.getElementById('planet_wars2').onclick = clickEvent;
 
-//framerate
-let fps = 30;
-let delay_ms = 1000/fps;
-//smallest timestep we'll simulate. if I get runge kutta working, might be able to increase this to lower CPU usage
-let physicsSteps_ms = 5;
+// //framerate
+// let fps = 30;
+// let delay_ms = 1000/fps;
+// //smallest timestep we'll simulate. if I get runge kutta working, might be able to increase this to lower CPU usage
+// let physicsSteps_ms = 5;
 
-//how fast to playback simulation. Want it slow enough to be fun to watch, but not so slow as to get boring
-let simulationSpeed = 0.4;
-// simulationSpeed = 2
+// //how fast to playback simulation. Want it slow enough to be fun to watch, but not so slow as to get boring
+// let simulationSpeed = 0.4;
+// // simulationSpeed = 2
 
-const start = performance.now();
-let lastUpdateTime = performance.now();
+// const start = performance.now();
+// let lastUpdateTime = performance.now();
 
-function update(){
-    let now = performance.now();
-    let actualTimePassed_ms = now - lastUpdateTime;
-    lastUpdateTime = now;
-    // console.log(`Actual time passed: ${actualTimePassed_ms}ms`)
-    for(let i =0; i<Math.floor(actualTimePassed_ms/physicsSteps_ms);i++){
-        world.physics.update(simulationSpeed*physicsSteps_ms/1000, i==0);
-    }
-    renderer.renderLive(world);
-    renderer.renderTrails(world);
-    setTimeout(()=>update(), delay_ms)
-}
+// function update(){
+//     let now = performance.now();
+//     let actualTimePassed_ms = now - lastUpdateTime;
+//     lastUpdateTime = now;
+//     // console.log(`Actual time passed: ${actualTimePassed_ms}ms`)
+//     for(let i =0; i<Math.floor(actualTimePassed_ms/physicsSteps_ms);i++){
+//         world.physics.update(simulationSpeed*physicsSteps_ms/1000, i==0);
+//     }
+//     renderer.renderLive(world);
+//     renderer.renderTrails(world);
+//     setTimeout(()=>update(), delay_ms)
+// }
 
-// setInterval(update.bind(world.physics), delay_ms);
-setTimeout(()=>update(), delay_ms)
+// // setInterval(update.bind(world.physics), delay_ms);
+// setTimeout(()=>update(), delay_ms)
 
 /* trying to see if the maximum height achievable according to physics is correct
 https://en.wikipedia.org/wiki/Escape_velocity#Height_of_lower-velocity_trajectories
@@ -119,11 +155,11 @@ and now it's much much closer to expected.
 playing aroudn with timesteps changes it slightly, so I think this is innacuracies in my physics engine?
 */
 let multiple = 1;//.5;
-const centreOfMass = world.physics.getCentreOfMass();
-const viewport = missileTrailsViewPort;
-for(const ship of world.ships){
+const centreOfMass = game.world.physics.getCentreOfMass();
+const viewport = game.renderer.liveViewports[0];//missileTrailsViewPort;
+for(const ship of game.world.ships){
     let pos = ship.position;
-    let x = world.maxMissileSpeed/world.physics.getEscapeVelocity(pos);
+    let x = game.world.maxMissileSpeed/game.world.physics.getEscapeVelocity(pos);
     let R = centreOfMass.subtract(pos).magnitude();
     let maxHeight = R*x*x/(1-x*x) * multiple;
     let centrePixels = viewport.translate(pos);
@@ -145,7 +181,7 @@ for(const ship of world.ships){
     //         break;
     //     }
     // }
-    let foundDistance = world.physics.getEscapeDistanceForMissile(ship, world.maxMissileSpeed)*1.5;
+    let foundDistance = game.world.physics.getEscapeDistanceForMissile(ship, game.world.maxMissileSpeed)*1.5;
     if (foundDistance > 0){
         viewport.canvas.beginPath();
         viewport.canvas.strokeStyle = "rgb(255,255,0)";

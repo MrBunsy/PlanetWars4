@@ -14,7 +14,11 @@ import { PlanetWarsSocketClient } from './multiplayer.js';
  * 
  * TODO exactly how renderer and match will interact for firing missiles
  * 
+ * update: I think world and renderer should be wrapped up in a PlanetWarsMatch object. The PlanetWarsMatch object will interact with the UI
+ * and be owned by the PlanetWarsSocketClient.
+ * 
  */
+
 
 // world.fireMissile(0, new Vector(-10,-10)); 
 let socket = new WebSocket("/ws");
@@ -24,15 +28,3 @@ let lobby = new PlanetWarsSocketClient(socket, (newStateObject) =>{
     console.log("state changed")
 }
 );
-
-// socket.addEventListener("message", (event) => {
-//   console.log("Message from server ", event.data);
-//   let message = JSON.parse(event.data);
-//   if(message.hasOwnProperty("fire")){
-//     let fire = message["fire"];
-//     if (fire.hasOwnProperty("velocity") && fire.hasOwnProperty("player")){
-//         let velocity = new Vector().fromJSON(fire["velocity"])
-//         world.fireMissile(fire["player"], velocity);
-//     }
-//   }
-// });
