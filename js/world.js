@@ -401,13 +401,13 @@ export class World{
             if (maxMissileDistanceOutwards < 0 || maxMissileDistanceOutwards > this.radius*0.4){
                 //can escape or go too far
                 console.log(`Gravity too low for ship ${ship.colour} max distance = ${maxMissileDistanceOutwards} > ${this.radius*0.1}`)
-                this.planetDensityMultiplier*=1.001
+                this.planetDensityMultiplier*=1.01
                 return false;
             }
             if (maxMissileDistanceOutwards < this.radius*0.1){
                 //too strong
                 console.log(`Gravity too high for ship ${ship.colour} max distance = ${maxMissileDistanceOutwards} < ${this.radius*0.1}`)
-                this.planetDensityMultiplier*=0.999;
+                this.planetDensityMultiplier*=0.99;
                 return false;
             }
 

@@ -28,7 +28,7 @@ let seed = Math.round(Math.random()*10000);//3;//11;
 seed = 983;
 console.log(seed)
 
-let playerCount = 2;
+let playerCount = 6;
 
 let players = [];
 for (let i =0; i<playerCount;i++){

@@ -6,29 +6,26 @@ import {Vector} from './geometry.js'
 import { PlanetWarsMatch, Player } from './game.js';
 
 /**
- * 
- * vague overall plan: a World will hold a physics engine object to simulate
- * 
- * a Match will be a higher level object which can run multiple rounds. each roudn will have its own World
- * 
- * a Renderer will render a world.
- * 
- * TODO exactly how renderer and match will interact for firing missiles
- * 
+ 
+quick reproduction of turn-taking planet wars offline
+ 
  */
 
-let seed = Math.round(Math.random()*10000);//3;//11;
+let params = new URLSearchParams(document.location.search);
 
-// seed = 2241;
-// seed = 8655;
-// seed = 4111;
-// seed = 2216;
-// seed = 5532;
-// seed = 2;
-seed = 983;
+let seed = params.get("seed");
+if(seed == null){
+    seed = Math.round(Math.random()*10000);
+}
+
+let playerCount = params.get("players");
+if(playerCount == null){
+    playerCount = 2;
+}
+
 console.log(seed)
 
-let playerCount = 3;
+
 
 let players = [];
 for (let i =0; i<playerCount;i++){
@@ -66,5 +63,7 @@ game.setSimulationFinishedCallback(() =>{
             currentPlayer%=game.players.length;
         }while(!players[currentPlayer].isAlive())
         game.planMove(players[currentPlayer]);
+    }else{
+        //TODO
     }
 })
