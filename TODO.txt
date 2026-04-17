@@ -8,3 +8,4 @@
    - Multi-missile? fire more than one at a time
    - blackhole creator - turns a planet into a black hole
    - bouncy planets
+ - player names somewhere - in a legend? aroudn the edge of teh map?
