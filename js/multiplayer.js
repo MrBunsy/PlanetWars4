@@ -1,6 +1,7 @@
 import {World} from './world.js'
 import {WorldRenderer, Viewport} from './render.js'
 import {Vector} from './geometry.js'
+import { PlanetWarsMatch, Player } from './game.js';
 
 /**
  * message structure:
@@ -171,6 +172,7 @@ class PlayerInfo extends Message{
         super(json, true);
         this.index = this.getInt("index");
         this.alive = this.getBoolean("alive");
+        // this.name = this.getString("name");
     }
 }
 
@@ -344,31 +346,21 @@ class Game extends MessageResponder{
 
         this.playerInfoHeader = this.mainDiv.querySelector("#player_info");
         this.gameStatusHeader = this.mainDiv.querySelector("#game_status");
-
-        this.fps = 30;
-        this.delay_ms = 1000/this.fps;
-        //smallest timestep we'll simulate. if I get runge kutta working, might be able to increase this to lower CPU usage
-        this.physicsSteps_ms = 5;
-
-        //how fast to playback simulation. Want it slow enough to be fun to watch, but not so slow as to get boring
-        this.simulationSpeed = 0.4;
-
-
-        let radius = 400;
-        if (this.gameMessage.players.length > 4){
-            radius = 500;
-        }
-        this.world = new World(this.gameMessage.players.length, this.gameMessage.seed, radius);
-        this.renderer = new WorldRenderer(this.gameMessage.seed, this.world);
-        let canvas_size = parseInt(document.getElementById("planet_wars0").width);
-        let zoom = (canvas_size/2)/this.world.radius
-        this.renderer.addBackgroundViewport(new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars0").getContext("2d"), canvas_size, canvas_size))
-        let missileTrailsViewPort = new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars1").getContext("2d"), canvas_size, canvas_size);
-        let missileViewPort = new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars2").getContext("2d"), canvas_size, canvas_size);
-        this.renderer.addLiveViewport(missileViewPort);
-        this.renderer.addTrailsViewport(missileTrailsViewPort)
         
-        this.renderer.renderBackground(this.world)
+        this.players = []
+        for(let i=0; i<this.gameMessage.players.length;i++){
+            this.players.push(new Player(i, `Player ${i}`));
+        }
+
+        this.game = new PlanetWarsMatch(this.mainDiv, this.players);
+
+        this.game.setSimulationFinishedCallback(()=>{this.allMissilesFinished()})
+        this.game.setPlayerFireMissileCallback((actionInfo)=>{
+            this.actionPlanned(actionInfo)
+        })
+
+        this.game.newRound(gameMessage.seed);
+
         /*
          - "PLANNING": everyone chooses their action
          - "PLANNED": game still in PLANNING but we've submitted our plan
@@ -379,18 +371,18 @@ class Game extends MessageResponder{
         this.state = "PLANNING";
 
         this.playerInfoHeader.innerHTML = `You are player ${this.playerIndex}`
-        this.playerInfoHeader.style=`color:${this.world.ships[this.playerIndex].colour}`
+        this.playerInfoHeader.style=`color:${this.game.world.ships[this.playerIndex].colour}`
         
         // TODO proper targetting thingy like old planet wars. temporary: just click        
         //https://stackoverflow.com/a/42111623
-        document.getElementById('planet_wars2').onclick =(e) => {
-            let rect = e.target.getBoundingClientRect();
-            let x = e.clientX - rect.left; //x position within the element.
-            let y = e.clientY - rect.top;  //y position within the element.
-            let worldPos = missileViewPort.translateFromPixelToWorld(new Vector(x,y));
-            this.clickedHere(worldPos);
+        // document.getElementById('planet_wars2').onclick =(e) => {
+        //     let rect = e.target.getBoundingClientRect();
+        //     let x = e.clientX - rect.left; //x position within the element.
+        //     let y = e.clientY - rect.top;  //y position within the element.
+        //     let worldPos = missileViewPort.translateFromPixelToWorld(new Vector(x,y));
+        //     this.clickedHere(worldPos);
         
-        }
+        // }
 
         this.startPlanning()
 
@@ -399,40 +391,44 @@ class Game extends MessageResponder{
     startPlanning(){
         //TODO, give player choices and let them aim, etc
         this.state = "PLANNING";
-        this.gameStatusHeader.innerHTML = "Click to choose where to fire a missile."
+        this.gameStatusHeader.innerHTML = "Click to choose where to fire a missile.";
+
+        this.game.planMove(this.players[this.playerIndex]);
 
     }
 
     runSimulation(){
-        this.lastUpdateTime = performance.now();
+        // this.lastUpdateTime = performance.now();
         this.state = "EXECUTING";
-        this.gameStatusHeader.innerHTML = "Missiles are flying! Wait for them to hit something"
+        this.gameStatusHeader.innerHTML = "Missiles are flying! Wait for them to hit something";
+        this.game.runSimulation();
         //dim the old trails a bit
-        this.renderer.dimTrails();
-        setTimeout(this.updateSimulation.bind(this), this.delay_ms)
+        // this.renderer.dimTrails();
+        // setTimeout(this.updateSimulation.bind(this), this.delay_ms)
     }
 
-    updateSimulation(){
-        let now = performance.now();
-        let actualTimePassed_ms = now - this.lastUpdateTime;
-        this.lastUpdateTime = now;
-        // console.log(`Actual time passed: ${actualTimePassed_ms}ms`)
-        for(let i =0; i<Math.floor(actualTimePassed_ms/this.physicsSteps_ms);i++){
-            this.world.physics.update(this.simulationSpeed*this.physicsSteps_ms/1000, i==0);
-        }
-        this.renderer.renderAllLiveViewports();
-        if (this.world.getLiveMissileCount() > 0){
-            // carry on running simulation
-            setTimeout(this.updateSimulation.bind(this), this.delay_ms)
-        }else{
-            //all missiles hit something
-            this.allMissilesFinished()
-        }
-    }
+    // updateSimulation(){
+    //     let now = performance.now();
+    //     let actualTimePassed_ms = now - this.lastUpdateTime;
+    //     this.lastUpdateTime = now;
+    //     // console.log(`Actual time passed: ${actualTimePassed_ms}ms`)
+    //     for(let i =0; i<Math.floor(actualTimePassed_ms/this.physicsSteps_ms);i++){
+    //         this.world.physics.update(this.simulationSpeed*this.physicsSteps_ms/1000, i==0);
+    //     }
+    //     this.renderer.renderAllLiveViewports();
+    //     if (this.world.getLiveMissileCount() > 0){
+    //         // carry on running simulation
+    //         setTimeout(this.updateSimulation.bind(this), this.delay_ms)
+    //     }else{
+    //         //all missiles hit something
+    //         this.allMissilesFinished()
+    //     }
+    // }
 
     getPlayersState(){
+        //TODO get the game to update Player objects with this sort of info
         let players = [];
-        for(const ship of this.world.ships){
+        for(const ship of this.game.world.ships){
             let playerState = {
                 "index": ship.playerIndex,
                 "alive": ship.alive,
@@ -450,18 +446,10 @@ class Game extends MessageResponder{
             "type":"ExecutionFinished",
             "players": this.getPlayersState(),
             //message conclusion will probably be ignored as server evalates its own decision?
-            "gameOver": this.world.getLivePlayerCount() <= 1
+            "gameOver": this.game.isGameOver(),
         }
 
-        // if(this.world.getLivePlayerCount() > 1){
-        //     console.log("Missiles finished, players still alive, back to planning stage")
-        //     message["nextState"]= "PLANNING";
-        //     this.startPlanning();
-        // }else{
-        //     //everybody's dead, dave.
-        //     // this.finishGame();
-        //     message["conclusion"]= "FINISHED";
-        // }
+        // server will send us to finishGame() via a ExecutionFinished message
         this.send(message)
     }
 
@@ -477,13 +465,13 @@ class Game extends MessageResponder{
         this.gameStatusHeader.innerHTML = `Game over: ${blurb}`;
     }
 
-    clickedHere(worldPos){
+    actionPlanned(actionInfo){
         if(this.state == "PLANNING"){
-            let angle = this.world.ships[this.playerIndex].position.angleTo(worldPos);
+            // let angle = this.world.ships[this.playerIndex].position.angleTo(worldPos);
             let message = {
                 "type":"PlayerPlan",
-                "action": "Fire",
-                "angle": angle
+                "action": actionInfo["action"],
+                "angle": actionInfo["angle"]
             }
             this.state = "PLANNED";
             this.send(message)
@@ -512,7 +500,8 @@ class Game extends MessageResponder{
             for (const plan of message.plans){
                 switch(plan.action){
                     case "Fire":
-                        this.world.fireMissileAtAngle(plan.player, plan.angle);
+                        this.game.shipFiresMissile(this.players[plan.player], plan.angle);
+                        break;
                 }
             }
             this.runSimulation();

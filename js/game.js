@@ -8,7 +8,7 @@ export class Player{
         this.index = index;
         this.name = name;
         this.ship = null;
-        this.shields = 3;
+        this.shields = 0;
         this.previousShotsDegrees = [];
     }
 
@@ -46,8 +46,8 @@ export class PlanetWarsMatch{
         this.world = null;
         this.renderer = null;
         this.players = players;
-        this.playerFireMissileCallback = (player, angleRadians)=>{
-            console.log(`Fire missile ${player.index}: ${this.radiansToDegrees(angleRadians)}`)
+        this.playerFireMissileCallback = (actionInfo)=>{
+            // console.log(`Fire missile ${player.index}: ${this.radiansToDegrees(angleRadians)}`)
         }
 
         this.simulationFinishedCallback = ()=>{
@@ -69,6 +69,10 @@ export class PlanetWarsMatch{
 
     setSimulationFinishedCallback(callback){
         this.simulationFinishedCallback = callback
+    }
+
+    isGameOver(){
+        return this.world.getLivePlayerCount() <= 1;
     }
 
     newRound(seed){
@@ -150,7 +154,17 @@ export class PlanetWarsMatch{
             let x = e.clientX - rect.left; //x position within the element.
             let y = e.clientY - rect.top;  //y position within the element.
             this.mousePos = new Vector(x,y);
-        }
+        };
+        // no mouse on mobile, so a bodgey backup with click
+        this.topCanvasElement.onclick=(e) => {
+            let rect = this.topCanvasElement.getBoundingClientRect();
+            let x = e.clientX - rect.left; //x position within the element.
+            let y = e.clientY - rect.top;  //y position within the element.
+            this.mousePos = new Vector(x,y);
+            this.mouseDown = true;
+            this.missileAimLoop();
+            this.mouseDown = false;
+        };
     }
 
     userFiresMissile(){
@@ -158,7 +172,14 @@ export class PlanetWarsMatch{
         this.fireControlDiv.classList.add("hidden");
         let angleRads = this.degreesToRadians(parseFloat(this.fireControlAngleInput.value));
         this.firingPlayer.previousShotsDegrees.push(this.fireControlAngleInput.value)
-        this.playerFireMissileCallback(this.firingPlayer, angleRads);
+        let info = {
+            "action": "Fire",
+            "angle": angleRads
+            
+        }
+        //clear the aiming doodad
+        this.renderer.liveViewports[0].clear();
+        this.playerFireMissileCallback(info);
     }
 
     shipFiresMissile(player, angleRadians){

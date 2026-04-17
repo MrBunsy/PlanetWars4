@@ -51,8 +51,8 @@ game.planMove(players[0]);
 
 let currentPlayer = 0;
 
-game.setPlayerFireMissileCallback((player, angle)=> {
-    game.shipFiresMissile(player, angle);
+game.setPlayerFireMissileCallback((info)=> {
+    game.shipFiresMissile(players[currentPlayer], info["angle"]);
     
     // game.planMove(players[currentPlayer]);
     game.runSimulation();
