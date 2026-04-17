@@ -352,8 +352,9 @@ class Game extends MessageResponder{
             this.players.push(new Player(i, `Player ${i}`));
         }
 
-        this.game = new PlanetWarsMatch(this.mainDiv, this.players);
+        this.game = new PlanetWarsMatch(this.mainDiv.querySelector("#game_div"), this.players);
 
+        
         this.game.setSimulationFinishedCallback(()=>{this.allMissilesFinished()})
         this.game.setPlayerFireMissileCallback((actionInfo)=>{
             this.actionPlanned(actionInfo)
@@ -455,7 +456,7 @@ class Game extends MessageResponder{
 
     finishGame(){
         this.state = "FINISHED"
-        let survivors = this.world.getLivePlayerIndexes();
+        let survivors = this.game.getLivePlayerIndexes();
         let blurb = "Everybody's Dead, Dave";
         if (survivors.length > 0){
             blurb = `Player ${survivors[0]} won!`

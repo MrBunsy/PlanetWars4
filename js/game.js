@@ -12,6 +12,10 @@ export class Player{
         this.previousShotsDegrees = [];
     }
 
+    isAlive(){
+        return this.ship.alive;
+    }
+
     setShip(ship){
         this.ship = ship;
     }
@@ -34,6 +38,23 @@ export class PlanetWarsMatch{
      */
     constructor(mainGameDiv, players){
         this.mainGameDiv = mainGameDiv;
+        //TODO make this element by element? then dispense with teh queryselectors below.
+        this.mainGameDiv.innerHTML=`<h2 id="player_info"></h2>
+    <h3 id="game_status"></h3>
+    <div class="hidden" id="action_chooser"></div>
+    <div class="hidden" id="fire_control">
+        <form>
+            <input type="text" name="angle">
+            <input type="submit" value="Fire!">
+        </form>
+    </div>
+    <div class="canvas_container">
+        <canvas id="background" width="800" height="800" ></canvas>
+        <canvas id="missile_trails" width="800" height="800" ></canvas>
+        <canvas id="live" width="800" height="800" ></canvas>
+    </div>`
+
+
         this.actionChooserDiv = mainGameDiv.querySelector("#action_chooser");
         this.fireControlDiv = mainGameDiv.querySelector("#fire_control");
 
@@ -41,7 +62,9 @@ export class PlanetWarsMatch{
 
         this.fireControlAngleInput = this.fireControlForm.querySelector("input[name='angle']")
 
-        this.topCanvasElement = document.getElementById("planet_wars2")
+        this.backgroundCanvasElement = mainGameDiv.querySelector("#background");
+        this.missileTrailCanvasElement =  mainGameDiv.querySelector("#missile_trails");
+        this.liveCanvasElement =  mainGameDiv.querySelector("#live");
 
         this.world = null;
         this.renderer = null;
@@ -61,7 +84,14 @@ export class PlanetWarsMatch{
 
         //how fast to playback simulation. Want it slow enough to be fun to watch, but not so slow as to get boring
         this.simulationSpeed = 0.4;
+
+        // this.world.shipHitCallback = this.shipHit.bind(this);
     }
+
+    // shipHit(hit, hitBy){
+    //     this.players[hit.playerIndex].alive = false;
+
+    // }
 
     setPlayerFireMissileCallback(callback){
         this.playerFireMissileCallback = callback;
@@ -75,6 +105,16 @@ export class PlanetWarsMatch{
         return this.world.getLivePlayerCount() <= 1;
     }
 
+    getLivePlayerIndexes(){
+        let players = [];
+        for(const ship of this.world.ships){
+            if (ship.alive){
+                players.push(ship.playerIndex)
+            }
+        }
+        return players;
+    }
+
     newRound(seed){
         let radius = 400;
         if (this.players.length > 4){
@@ -83,13 +123,12 @@ export class PlanetWarsMatch{
         this.world = new World(this.players.length, seed, radius);
         this.renderer = new WorldRenderer(seed, this.world);
 
-        let canvas_size = parseInt(document.getElementById("planet_wars0").width);
+        let canvas_size = parseInt(this.backgroundCanvasElement.width);
         let zoom = (canvas_size/2)/this.world.radius
-// // zoom = 0.5;
-        //TODO create these canvases here?
-        this.renderer.addBackgroundViewport(new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars0").getContext("2d"), canvas_size, canvas_size))
-        let missileTrailsViewPort = new Viewport(new Vector(0,0), zoom, document.getElementById("planet_wars1").getContext("2d"), canvas_size, canvas_size);
-        let missileViewPort = new Viewport(new Vector(0,0), zoom, this.topCanvasElement.getContext("2d"), canvas_size, canvas_size);
+
+        this.renderer.addBackgroundViewport(new Viewport(new Vector(0,0), zoom, this.backgroundCanvasElement.getContext("2d"), canvas_size, canvas_size))
+        let missileTrailsViewPort = new Viewport(new Vector(0,0), zoom, this.missileTrailCanvasElement.getContext("2d"), canvas_size, canvas_size);
+        let missileViewPort = new Viewport(new Vector(0,0), zoom, this.liveCanvasElement.getContext("2d"), canvas_size, canvas_size);
         this.renderer.addLiveViewport(missileViewPort);
         this.renderer.addTrailsViewport(missileTrailsViewPort)
         
@@ -152,17 +191,17 @@ export class PlanetWarsMatch{
 
         this.missileAimLoop();
 
-        this.topCanvasElement.onmousedown=(e)=>{this.mouseDown = true;}
+        this.liveCanvasElement.onmousedown=(e)=>{this.mouseDown = true;}
         document.onmouseup = (e) => {this.mouseDown = false;}
         document.onmousemove = (e) => {
-            let rect = this.topCanvasElement.getBoundingClientRect();
+            let rect = this.liveCanvasElement.getBoundingClientRect();
             let x = e.clientX - rect.left; //x position within the element.
             let y = e.clientY - rect.top;  //y position within the element.
             this.mousePos = new Vector(x,y);
         };
         // no mouse on mobile, so a bodgey backup with click
-        this.topCanvasElement.onclick=(e) => {
-            let rect = this.topCanvasElement.getBoundingClientRect();
+        this.liveCanvasElement.onclick=(e) => {
+            let rect = this.liveCanvasElement.getBoundingClientRect();
             let x = e.clientX - rect.left; //x position within the element.
             let y = e.clientY - rect.top;  //y position within the element.
             this.mousePos = new Vector(x,y);

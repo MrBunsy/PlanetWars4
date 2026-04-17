@@ -43,12 +43,12 @@ class PlayerShip extends PhysicsEntity{
         this.colour = this.colours[playerIndex];
         this.angle = this.position.angleTo(this.world.centre);
         this.alive = true;
-        this.killedBy = null;
+        this.killedByIndex = null;
     }
 
-    kill(byPlayer){
+    kill(byPlayerIndex){
         this.alive = false;
-        this.killedBy=byPlayer;
+        this.killedByIndex=byPlayerIndex;
     }
 //     fireMissile(physics, direction){
         
@@ -87,6 +87,7 @@ class Missile extends PhysicsEntity{
     collisionWith(otherEntity){
         if(otherEntity instanceof PlayerShip){
             otherEntity.kill(this.playerIndex);
+            this.world.shipHit(this, otherEntity);
         }
         // console.log("COLLISION")
         this.physics.removeEntity(this);
@@ -131,9 +132,16 @@ export class World{
         this.centre = new Vector(0,0);
 
         this.missiles = []
+
+        this.planetDensityMultiplier=1.0;
         
         this.generateMap();
+        // this.shipHitCallback=(ship, hitByShip) => {}
 
+    }
+
+    shipHit(ship, shipThatShot){
+        //TODO grey and cross them out
     }
 
     fireMissile(playerIndex, velocity){
@@ -166,15 +174,7 @@ export class World{
         return count;
     }
 
-    getLivePlayerIndexes(){
-        let players = [];
-        for(const ship of this.ships){
-            if (ship.alive){
-                players.push(ship.playerIndex)
-            }
-        }
-        return players;
-    }
+    
 
     generateMap(){
         let attempts = 0;
@@ -292,20 +292,20 @@ export class World{
         let planetRadius = this.random.nextBetween(this.planetMinR, this.planetMaxR);//roundNumber(minR + Math.round(Math.random() * (maxR - minR)));
         
         //TODO should colour be here or purely in the renderer? probably doesn't matter much at this complexity
-        let density = 1;
+        let density = this.planetDensityMultiplier;
         let colour = "rgb(0 128 0)";//"008000";
         switch (Math.floor(this.random.next()*3))
         {
             case 0://low density - green
-                density = 0.5;
+                density = this.planetDensityMultiplier*0.5;
                 colour = "rgb(0 128 0)";
                 break;
             case 1://normal density - brown
-                density = 1.0;
+                density = this.planetDensityMultiplier*1.0;
                 colour = "rgb(165 80 42)";//"A5502A";
                 break;
             case 2://high density - blue
-                density = 2.0;
+                density = this.planetDensityMultiplier*2.0;
                 colour = "rgb(0 0 200)";//"0000C8";
                 break;
         }
@@ -401,15 +401,13 @@ export class World{
             if (maxMissileDistanceOutwards < 0 || maxMissileDistanceOutwards > this.radius*0.4){
                 //can escape or go too far
                 console.log(`Gravity too low for ship ${ship.colour} max distance = ${maxMissileDistanceOutwards} > ${this.radius*0.1}`)
-                this.planetMinR*=1.001;
-                this.planetMaxR*=1.001;
+                this.planetDensityMultiplier*=1.001
                 return false;
             }
             if (maxMissileDistanceOutwards < this.radius*0.1){
                 //too strong
                 console.log(`Gravity too high for ship ${ship.colour} max distance = ${maxMissileDistanceOutwards} < ${this.radius*0.1}`)
-                this.planetMinR*=0.999;
-                this.planetMaxR*=0.999;
+                this.planetDensityMultiplier*=0.999;
                 return false;
             }
 
