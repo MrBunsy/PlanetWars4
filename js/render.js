@@ -171,6 +171,9 @@ export class WorldRenderer{
                     }
 				}
 				
+                for(const spaceStation of world.spaceStations){
+                    this.drawSpaceStation(viewport, spaceStation);
+                }
 				
 				for(const ship of world.ships){
                     this.drawShip(ship, viewport);
@@ -179,6 +182,50 @@ export class WorldRenderer{
 
             }
         }
+    }
+
+    /**
+     * Based on the one from planet wars 2 which was taken from the original
+     * @param {*} viewport 
+     * @param {*} spaceStation 
+     */
+    drawSpaceStation(viewport, spaceStation){
+        let centre = viewport.translate(spaceStation.position);
+        let radius = spaceStation.radius * viewport.zoom;
+
+        //left to right
+        // let bodyGradient = viewport.canvas.createRadialGradient(centre.x - radius*1.25, centre.y, 0, centre.x+radius, centre.y, radius*3)
+        let bodyGradient = viewport.canvas.createLinearGradient(centre.x - radius, centre.y, centre.x+radius, centre.y)
+        bodyGradient.addColorStop(0, 'rgb(0,0,0)');
+        bodyGradient.addColorStop(1, 'rgb(128,128,128)');
+
+        let firingDimpleGradient = viewport.canvas.createLinearGradient(centre.x, centre.y, centre.x+radius, centre.y);
+        firingDimpleGradient.addColorStop(0,'rgb(128,128,128)');
+        firingDimpleGradient.addColorStop(1,'rgb(0,0,0)');
+
+        let centreBandGradient = viewport.canvas.createLinearGradient(centre.x - radius, centre.y, centre.x + radius, centre.y);
+        centreBandGradient.addColorStop(0,'rgb(10,10,10)');
+        centreBandGradient.addColorStop(1,'rgb(135,135,135)');
+
+        viewport.canvas.beginPath()
+        viewport.canvas.moveTo(centre.x,centre.y)
+        viewport.canvas.fillStyle=bodyGradient;
+        viewport.canvas.arc(centre.x,centre.y,radius,0,Math.PI*2,true);
+        viewport.canvas.fill();
+        
+        viewport.canvas.beginPath()
+        viewport.canvas.moveTo(centre.x+radius/3,centre.y-radius/3-2)
+        viewport.canvas.fillStyle=firingDimpleGradient;
+        viewport.canvas.arc(centre.x+radius/3,centre.y-radius/3-2,radius/3.5,0,Math.PI*2,true);
+        viewport.canvas.fill();
+        
+        viewport.canvas.fillStyle = centreBandGradient;
+        let mainBandHigh = radius*0.15;
+        viewport.canvas.fillRect(centre.x-radius,centre.y-mainBandHigh/2,radius*2,mainBandHigh);
+        
+        // viewport.canvas.fillStyle = "rgb(50,50,50)";
+        // let smallBandHigh = radius*0.05;
+        // viewport.canvas.fillRect(centre.x-radius,centre.y - smallBandHigh/2,radius*2,smallBandHigh);
     }
 
     // renderShips(){

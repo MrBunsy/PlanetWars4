@@ -76,7 +76,7 @@ class Planet extends PhysicsEntity{
 /**
  * Planet with negative mass
  */
-class AntiPlanet extends PhysicsEntity{
+class SpaceStation extends PhysicsEntity{
     constructor(world, position, radius){
         let mass = Math.pow(radius, 3) * (-0.2);
         super(world.physics, radius, mass, position, true);
@@ -154,9 +154,10 @@ export class World{
         this.planetMaxR = planetMaxR;
 
         // one array of all entities or lots of lists of the different types?
-        this.entities = [];
         this.ships = [];
         this.planets = [];
+        this.spaceStations = [];
+        this.blackholes = [];
 
         this.maxRadius = radius*1.5;
         if(maxRadius > 0){
@@ -226,12 +227,17 @@ export class World{
             // this.generatePlanets(1);
             let blackholeCount = this.random.next() < 0.2 ? 1 : 0;
             this.generateBlackholes(blackholeCount);
+            let spaceStationCount = this.random.next() < 0.2 ? 1 : 0;
+            // spaceStationCount=1;
+            this.generateSpaceStations(spaceStationCount);
 
             this.physics.addEntities(this.ships);
             this.physics.addEntities(this.planets);
             this.physics.addEntities(this.blackholes);
+            this.physics.addEntities(this.spaceStations);
             attempts++;
             console.log("generateMap attempt " + attempts)
+            console.log(`space stations: ${this.spaceStations.length}, blackholes: ${this.blackholes.length}`)
             
         }while(!this.checkMapPossible() && attempts < 1000)
     }
@@ -289,6 +295,19 @@ export class World{
         
 
 
+    }
+
+    generateSpaceStations(spaceStationCount=1){
+        this.spaceStations = [];
+        let loopLimit = 0;
+        while(this.spaceStations.length < spaceStationCount && loopLimit < 50){
+            loopLimit++;
+            let centre = polar(this.random.next()*Math.PI*2, this.radius - this.planetMaxR*1.5);
+            let radius = this.random.nextBetween(this.planetMinR, this.planetMaxR);
+            if (!this.objectOverlaps(centre, radius)){
+                this.spaceStations.push(new SpaceStation(this, centre, radius));
+            }
+        }
     }
 
     generateBlackholes(blackholeCountAim=1){
@@ -366,13 +385,18 @@ export class World{
 
 
     objectOverlaps(testPosition, testRadius, minPlanetMultiplier=1/4, minShipMultiplier=10){
-        for(const planet of this.planets){
+        for(const planet of this.planets.concat(this.spaceStations)){
             if (testPosition.subtract(planet.position).magnitudeSquared() < Math.pow(testRadius + planet.radius + (testRadius + planet.radius)*minPlanetMultiplier, 2)){
                 return true;
             }
         }
         for(const ship of this.ships){
             if(testPosition.subtract(ship.position).magnitudeSquared() < Math.pow(testRadius + ship.radius*minShipMultiplier, 2)){
+                return true;
+            }
+        }
+        for(const blackhole of this.blackholes){
+            if(testPosition.subtract(blackhole.position).magnitudeSquared() < Math.pow(testRadius + blackhole.radius*minPlanetMultiplier, 2)){
                 return true;
             }
         }
