@@ -3,10 +3,21 @@
 }
 
 .canvas_container canvas{
-    border-radius: 50%;
+    
     position:absolute; top:0; left:0;
+}   
+
+.canvas_container .circle{
+    border-radius: 50%;
+    border: solid 1px white;
+
 }
 
 .hidden{
     display:none;
+}
+
+html {
+    background-color: rgb(4, 1, 24);
+    color: white;
 }

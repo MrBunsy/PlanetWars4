@@ -62,7 +62,7 @@ class PlayerShip extends PhysicsEntity{
 
 class Planet extends PhysicsEntity{
     constructor(world, position, density, radius, colour, ring=false, angle=0){
-        let mass = 0.3 * Math.pow(radius, 3) * density;
+        let mass = Math.pow(radius, 3) * density;
         super(world.physics, radius, mass, position, true);
         this.world = world;
         this.density = density;
@@ -70,6 +70,16 @@ class Planet extends PhysicsEntity{
         this.colour = colour;
         this.ring = ring;
         this.angle = angle;
+    }
+}
+
+/**
+ * Planet with negative mass
+ */
+class AntiPlanet extends PhysicsEntity{
+    constructor(world, position, radius){
+        let mass = Math.pow(radius, 3) * (-0.2);
+        super(world.physics, radius, mass, position, true);
     }
 }
 
@@ -103,11 +113,29 @@ class Missile extends PhysicsEntity{
     }
 }
 
+/**
+ * Idea - most power up crates will have no or little mass.
+ * negative effects could have higher masses
+ * really positive effects could have negative masses!
+ * 
+ * I was planning to make them square, but i've got for a simplified physics engine which only supports circles
+ * so I'll treat them as circles but render them as polygons
+ */
+class Crate extends PhysicsEntity{
+    constructor(world, position, radius, mass, colour, sides=6, angle=0){
+        super(world.physics, radius, mass, position, true)
+        this.colour = colour;
+        //purely for asthetics is the plan
+        this.sides = sides;
+        this.angle = angle;
+    }
+}
+
 export class World{
     /***
      * Holds the state of the world and will interact with the physics engine to run a single match
      */
-    constructor(players, seed, radius=400, maxRadius=-1, planetMinR=20, planetMaxR=50, shipRadius=10, missileRadius=1, blackHoleRadius=5, maxMissileSpeed=100){
+    constructor(players, seed, radius=400, maxRadius=-1, planetMinR=20, planetMaxR=50, shipRadius=12, missileRadius=1, blackHoleRadius=5, maxMissileSpeed=100){
         
         this.playerCount = players;
         this.random = new SeededRandom(seed);
@@ -140,7 +168,7 @@ export class World{
 
         this.missiles = []
 
-        this.planetDensityMultiplier=1.0;
+        this.planetDensityMultiplier=0.3;
         
         this.generateMap();
         // this.shipHitCallback=(ship, hitByShip) => {}
@@ -337,7 +365,7 @@ export class World{
     }
 
 
-    objectOverlaps(testPosition, testRadius, minPlanetMultiplier=1/4, minShipMultiplier=15){
+    objectOverlaps(testPosition, testRadius, minPlanetMultiplier=1/4, minShipMultiplier=10){
         for(const planet of this.planets){
             if (testPosition.subtract(planet.position).magnitudeSquared() < Math.pow(testRadius + planet.radius + (testRadius + planet.radius)*minPlanetMultiplier, 2)){
                 return true;

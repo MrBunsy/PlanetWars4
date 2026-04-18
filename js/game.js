@@ -49,10 +49,10 @@ export class PlanetWarsMatch{
         </form>
     </div>
     <div class="canvas_container">
-        <canvas id="background" width="800" height="800" ></canvas>
-        <canvas id="occasional_changes" width="800" height="800" ></canvas>
-        <canvas id="missile_trails" width="800" height="800" ></canvas>
-        <canvas id="live" width="800" height="800" ></canvas>
+        <canvas id="background" class="circle" width="800" height="800" ></canvas>
+        <canvas id="occasional_changes" class="circle" width="800" height="800" ></canvas>
+        <canvas id="missile_trails" class="circle" width="800" height="800" ></canvas>
+        <canvas id="live" class="circle" width="800" height="800" ></canvas>
     </div>`
 
 

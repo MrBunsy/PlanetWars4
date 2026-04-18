@@ -322,6 +322,24 @@ export class WorldRenderer{
         this.drawShip(ship, viewport, angle, true);
     }
 
+    drawCrate(viewport, crate){
+
+        let centre = viewport.translate(crate.position);
+        let radius = viewport.zoom*crate.radius;
+
+        viewport.canvas.beginPath();
+        for(let i=0;i<crate.sides;i++){
+            let angle = i*Math.PI*2/crate.sides + crate.angle;
+            let pos = centre.add(polar(angle, radius))
+            if(i==0){
+                viewport.canvas.moveTo(pos.x, pos.y);
+            }else{
+                viewport.canvas.lineTo(pos.x, pos.y)
+            }
+        }
+        viewport.canvas.fill();
+    }
+
     renderLive(){
         const world = this.world;
         for(const viewport of this.liveViewports){
@@ -487,14 +505,24 @@ export class WorldRenderer{
         viewport.canvas.stroke();
 
         if(ship.shieldActive && !ignoreShield){
+
+            let shieldRadius = ship.radius*1.4*viewport.zoom
+            let topLeft = shipPositionPixels.add(polar(ship.angle,shieldRadius))//new Vector(shieldRadius, shieldRadius)
+            let bottomRight = shipPositionPixels.add(polar(ship.angle+Math.PI,shieldRadius))
+            let grad = viewport.canvas.createRadialGradient(topLeft.x, topLeft.y, 0, bottomRight.x, bottomRight.y, shieldRadius*2);
+            
+            grad.addColorStop(0, "rgba(0,0,0,0.6)");
+            grad.addColorStop(1, ship.colour.toString(0.3));
+            
             viewport.canvas.beginPath();
-            viewport.canvas.fillStyle=ship.colour.toString(0.3);
-            viewport.canvas.arc(shipPositionPixels.x, shipPositionPixels.y, ship.radius*1.4*viewport.zoom, 0, Math.PI * 2, false);
+            viewport.canvas.fillStyle=grad;
+            viewport.canvas.arc(shipPositionPixels.x, shipPositionPixels.y, shieldRadius, 0, Math.PI * 2, false);
             viewport.canvas.fill();
 
             viewport.canvas.beginPath();
-            viewport.canvas.strokStyle=ship.colour.toString(0.75);
-            viewport.canvas.arc(shipPositionPixels.x, shipPositionPixels.y, ship.radius*1.4*viewport.zoom, 0, Math.PI * 2, false);
+            viewport.canvas.lineWidth = 1;
+            viewport.canvas.strokeStyle=ship.colour.toString(0.75);
+            viewport.canvas.arc(shipPositionPixels.x, shipPositionPixels.y, shieldRadius, 0, Math.PI * 2, false);
             viewport.canvas.stroke();
         }
         
