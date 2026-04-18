@@ -44,6 +44,11 @@ class PlayerShip extends PhysicsEntity{
         this.angle = this.position.angleTo(this.world.centre);
         this.alive = true;
         this.killedByIndex = null;
+        this.shieldActive= false;
+    }
+
+    useShield(activate){
+        this.shieldActive = activate;
     }
 
     kill(byPlayerIndex){
@@ -86,8 +91,10 @@ class Missile extends PhysicsEntity{
 
     collisionWith(otherEntity){
         if(otherEntity instanceof PlayerShip){
-            otherEntity.kill(this.playerIndex);
-            this.world.shipHit(this, otherEntity);
+            if (!otherEntity.shieldActive){
+                otherEntity.kill(this.playerIndex);
+                this.world.shipHit(this, otherEntity);
+            }
         }
         // console.log("COLLISION")
         this.physics.removeEntity(this);
@@ -144,7 +151,7 @@ export class World{
         //TODO grey and cross them out
     }
 
-    fireMissile(playerIndex, velocity){
+    _fireMissile(playerIndex, velocity){
         let position = this.ships[playerIndex].position.add(velocity.unit().multiply(this.shipRadius + this.missileRadius + 1))
         let missile = new Missile(this, this.missileRadius,position, velocity, playerIndex);
         this.missiles.push(missile)
@@ -152,7 +159,12 @@ export class World{
 
     }
     fireMissileAtAngle(playerIndex, angle){
-        this.fireMissile(playerIndex, polar(angle, this.maxMissileSpeed))
+        this.ships[playerIndex].angle = angle;
+        this._fireMissile(playerIndex, polar(angle, this.maxMissileSpeed))
+    }
+
+    useShield(playerIndex, enable=true, shieldType){
+        this.ships[playerIndex].useShield(enable);
     }
 
     removeMissile(missile){

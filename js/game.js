@@ -4,11 +4,11 @@ import { polar, Vector } from "./geometry.js";
 
 
 export class Player{
-    constructor(index, name = "Unnamed Player"){
+    constructor(index, name = "Unnamed Player", shields=3){
         this.index = index;
         this.name = name;
         this.ship = null;
-        this.shields = 0;
+        this.shields = shields;
         this.previousShotsDegrees = [];
     }
 
@@ -50,6 +50,7 @@ export class PlanetWarsMatch{
     </div>
     <div class="canvas_container">
         <canvas id="background" width="800" height="800" ></canvas>
+        <canvas id="occasional_changes" width="800" height="800" ></canvas>
         <canvas id="missile_trails" width="800" height="800" ></canvas>
         <canvas id="live" width="800" height="800" ></canvas>
     </div>`
@@ -63,13 +64,16 @@ export class PlanetWarsMatch{
         this.fireControlAngleInput = this.fireControlForm.querySelector("input[name='angle']")
 
         this.backgroundCanvasElement = mainGameDiv.querySelector("#background");
+        // ships and shields and things which don't change often - changed my mind and will just redraw the background
+        // this.occasionalChangesCanvasElement = mainGameDiv.querySelector("#occasional_changes");
         this.missileTrailCanvasElement =  mainGameDiv.querySelector("#missile_trails");
         this.liveCanvasElement =  mainGameDiv.querySelector("#live");
 
         this.world = null;
         this.renderer = null;
         this.players = players;
-        this.playerFireMissileCallback = (actionInfo)=>{
+        // fired a missile, or brought up shields, etc
+        this.playerChosenActionCallback = (actionInfo)=>{
             // console.log(`Fire missile ${player.index}: ${this.radiansToDegrees(angleRadians)}`)
         }
 
@@ -93,8 +97,8 @@ export class PlanetWarsMatch{
 
     // }
 
-    setPlayerFireMissileCallback(callback){
-        this.playerFireMissileCallback = callback;
+    setPlayerChosenActionCallback(callback){
+        this.playerChosenActionCallback = callback;
     }
 
     setSimulationFinishedCallback(callback){
@@ -132,7 +136,7 @@ export class PlanetWarsMatch{
         this.renderer.addLiveViewport(missileViewPort);
         this.renderer.addTrailsViewport(missileTrailsViewPort)
         
-        this.renderer.renderBackground(this.world)
+        this.renderer.renderBackground()
 
         for(let i =0; i<this.players.length; i++){
             this.players[i].setShip(this.world.ships[i]);
@@ -140,21 +144,28 @@ export class PlanetWarsMatch{
         console.log(`New round: zoom ${zoom}, world radius: ${radius}, canvas_size: ${canvas_size}`)
     }
 
-    planMove(player){
+    provideActionTypeChoice(player){
         //provide options
         this.actionChooserDiv.classList.remove("hidden");
         this.actionChooserDiv.innerHTML="Choose Move:"
         let actions = player.getAvailableActions();
         if(actions.length == 1 && actions[0] == "missile"){
             //skip the options and go straight to aiming
-            this.planMoveStage2(player, actions[0]);
+            this.actionChosen(player, actions[0]);
         }
         for (const action of actions){
             let button = document.createElement("button");
+            let text = action;
+            if(action == "shield"){
+                text = `Use Shield (${player.shields} remaining)`;
+            }
+            if(action == "missile"){
+                text = "Fire Missile (unlimited)";
+            }
             button.value=action;
-            button.innerHTML = action;
+            button.innerHTML = text;
             button.onclick=() =>{
-                this.planMoveStage2(player, action);
+                this.actionChosen(player, action);
             }
             this.actionChooserDiv.appendChild(button);
         }
@@ -178,7 +189,7 @@ export class PlanetWarsMatch{
         this.fireControlAngleInput.value=previousShot;
         this.fireControlForm.onsubmit = (event) =>{
             event.preventDefault();
-            this.userFiresMissile();
+            this.playerFiresMissile();
             return false;
         }
 
@@ -215,23 +226,35 @@ export class PlanetWarsMatch{
         })
     }
 
-    userFiresMissile(){
-        clearInterval(this.aimingInterval);
-        this.fireControlDiv.classList.add("hidden");
-        let angleRads = this.degreesToRadians(parseFloat(this.fireControlAngleInput.value));
-        this.firingPlayer.previousShotsDegrees.push(this.fireControlAngleInput.value)
-        let info = {
-            "action": "Fire",
-            "angle": angleRads
-            
-        }
-        //clear the aiming doodad
-        this.renderer.liveViewports[0].clear();
-        this.playerFireMissileCallback(info);
+    
+
+    /**
+     * For multiplayer, or something else controlling this object to choose to use user input to launch a missile
+     * @param {*} player 
+     * @param {*} angleRadians 
+     */
+    shipFiresMissile(player, angleRadians){
+        this.world.fireMissileAtAngle(player.index, angleRadians);
+        //redraw background as the ship will have changed angle
+        this.renderer.renderBackground();
     }
 
-    shipFiresMissile(player, angleRadians){
-        this.world.fireMissile(player.index, polar(angleRadians, this.world.maxMissileSpeed));
+    shipUsesShield(player, shieldType){
+        this.world.useShield(player.index, true, shieldType);
+        player.shields--;
+        this.renderer.renderBackground();
+    }
+
+    //disable sheilds and anything else that lasts only one turn
+    shipLosesTemporaryEffects(player){
+        this.world.useShield(player.index, false);
+        this.renderer.renderBackground();
+    }
+
+    loseAllTemporaryEffects(){
+        for(const player of this.players){
+            this.shipLosesTemporaryEffects(player);
+        }
     }
 
     /**
@@ -289,13 +312,41 @@ export class PlanetWarsMatch{
 
     }
 
-    planMoveStage2(player, action){
+    /**
+     * End result of choosing to fire a missile
+     * Intended to be called from the UI after aimMissile()
+     * just fires off a callback and tidies up the redraw loop from aiming
+     */
+    playerFiresMissile(){
+        //TODO also remove event listeners?
+        clearInterval(this.aimingInterval);
+
+        this.fireControlDiv.classList.add("hidden");
+
+        let angleRads = this.degreesToRadians(parseFloat(this.fireControlAngleInput.value));
+        this.firingPlayer.previousShotsDegrees.push(this.fireControlAngleInput.value)
+        let info = {
+            "action": "Fire",
+            "angle": angleRads
+            
+        }
+        //clear the aiming doodad
+        this.renderer.liveViewports[0].clear();
+        this.playerChosenActionCallback(info);
+    }
+
+    actionChosen(player, action){
         this.actionChooserDiv.classList.add("hidden");
         console.log(`player: ${player} ${action}`);
         switch(action){
             case "missile":
                 this.aimMissile(player);
                 
+            break;
+            case "shield":
+                this.playerChosenActionCallback({
+                    "action": "Shield",            
+                });
             break;
         }
     }

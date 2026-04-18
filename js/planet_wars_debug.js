@@ -47,12 +47,18 @@ let game = new PlanetWarsMatch(document.getElementById("planet_wars_game"), play
 
 game.newRound(seed);
 
-game.planMove(players[0]);
+game.provideActionTypeChoice(players[0]);
 
 let currentPlayer = 0;
 
-game.setPlayerFireMissileCallback((info)=> {
-    game.shipFiresMissile(players[currentPlayer], info["angle"]);
+game.setPlayerChosenActionCallback((info)=> {
+    game.shipLosesTemporaryEffects(players[currentPlayer]);
+    if (info["action"] == "Fire"){
+        game.shipFiresMissile(players[currentPlayer], info["angle"]);
+    }
+    if (info["action"] == "Shield"){
+        game.shipUsesShield(players[currentPlayer]);
+    }
     
     // game.planMove(players[currentPlayer]);
     game.runSimulation();
@@ -61,7 +67,7 @@ game.setPlayerFireMissileCallback((info)=> {
 game.setSimulationFinishedCallback(() =>{
     currentPlayer++;
     currentPlayer%=game.players.length;
-    game.planMove(players[currentPlayer]);
+    game.provideActionTypeChoice(players[currentPlayer]);
 })
 
 

@@ -150,7 +150,7 @@ class Plan extends Message{
         super(json, true);
         this.player = this.getInt("player");
         this.action = this.getString("action");
-        if(!["Fire"].includes(this.action)){
+        if(!["Fire", "Shield"].includes(this.action)){
             throw new Error(`Player action (${this.action}) not recognised`)
         }
         this.angle = this.getFloat("angle");
@@ -353,7 +353,7 @@ class Game extends MessageResponder{
 
         
         this.game.setSimulationFinishedCallback(()=>{this.allMissilesFinished()})
-        this.game.setPlayerFireMissileCallback((actionInfo)=>{
+        this.game.setPlayerChosenActionCallback((actionInfo)=>{
             this.actionPlanned(actionInfo)
         })
 
@@ -389,9 +389,9 @@ class Game extends MessageResponder{
     startPlanning(){
         //TODO, give player choices and let them aim, etc
         this.state = "PLANNING";
-        this.gameStatusHeader.innerHTML = "Click to choose where to fire a missile.";
-
-        this.game.planMove(this.players[this.playerIndex]);
+        this.gameStatusHeader.innerHTML = "Choose Your Action";
+        this.game.loseAllTemporaryEffects();
+        this.game.provideActionTypeChoice(this.players[this.playerIndex]);
 
     }
 
@@ -456,7 +456,7 @@ class Game extends MessageResponder{
         let survivors = this.game.getLivePlayerIndexes();
         let blurb = "Everybody's Dead, Dave";
         if (survivors.length > 0){
-            blurb = `Player ${this.players[survivors[0]].name} won!`
+            blurb = `${this.players[survivors[0]].name} won!`
         }
 
 
@@ -465,7 +465,7 @@ class Game extends MessageResponder{
 
     actionPlanned(actionInfo){
         if(this.state == "PLANNING"){
-            // let angle = this.world.ships[this.playerIndex].position.angleTo(worldPos);
+
             let message = {
                 "type":"PlayerPlan",
                 "action": actionInfo["action"],
@@ -499,6 +499,9 @@ class Game extends MessageResponder{
                 switch(plan.action){
                     case "Fire":
                         this.game.shipFiresMissile(this.players[plan.player], plan.angle);
+                        break;
+                    case "Shield":
+                        this.game.shipUsesShield(this.players[plan.player])
                         break;
                 }
             }

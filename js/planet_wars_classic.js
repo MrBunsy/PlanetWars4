@@ -29,29 +29,29 @@ console.log(seed)
 
 let players = [];
 for (let i =0; i<playerCount;i++){
-    let player = new Player(i,`Player ${i}`);
-    // player.setShip(world.ships[i]);
+    let player = new Player(i,`Player ${i}`, 0);
     players.push(player);
 
 }
-
-
-// let world = new World(playerCount, seed, 500, 30, 80);
-
-
 
 let game = new PlanetWarsMatch(document.getElementById("planet_wars_game"), players)
 
 game.newRound(seed);
 
-game.planMove(players[0]);
+game.provideActionTypeChoice(players[0]);
 
 let currentPlayer = 0;
 
-game.setPlayerFireMissileCallback((info)=> {
-    game.shipFiresMissile(players[currentPlayer], info["angle"]);
+game.setPlayerChosenActionCallback((info)=> {
+    game.shipLosesTemporaryEffects(players[currentPlayer]);
+
+    if (info["action"] == "Fire"){
+        game.shipFiresMissile(players[currentPlayer], info["angle"]);
+    }
+    if (info["action"] == "Shield"){
+        game.shipUsesShield(players[currentPlayer]);
+    }
     
-    // game.planMove(players[currentPlayer]);
     game.runSimulation();
 })
 
@@ -62,7 +62,7 @@ game.setSimulationFinishedCallback(() =>{
             currentPlayer++;
             currentPlayer%=game.players.length;
         }while(!players[currentPlayer].isAlive())
-        game.planMove(players[currentPlayer]);
+        game.provideActionTypeChoice(players[currentPlayer]);
     }else{
         //TODO
     }
