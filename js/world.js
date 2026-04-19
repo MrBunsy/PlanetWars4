@@ -122,15 +122,20 @@ class Missile extends PhysicsEntity{
  * so I'll treat them as circles but render them as polygons
  */
 class Crate extends PhysicsEntity{
-    constructor(world, position, radius, mass, colour, sides=6, angle=0){
+    constructor(world, position, radius, mass, colour, powerup, sides=6, angle=0){
         super(world.physics, radius, mass, position, true)
         this.colour = colour;
         //purely for asthetics is the plan
         this.sides = sides;
         this.angle = angle;
+        //TODO what exactly this is
+        this.powerup = powerup;
     }
 }
 
+/**
+ * Idea: for animations have an event system which spews out events, then have a subscribing system instead of adding more and more callbacks
+ */
 export class World{
     /***
      * Holds the state of the world and will interact with the physics engine to run a single match

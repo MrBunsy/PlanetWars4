@@ -42,6 +42,8 @@ export class Viewport{
  * 
  *  The plan is that teh world will be a circle. It will be constrained in CSS. Undecided if to render everything on a square and rely on nothing much being
  *  out of the circle, or to limit renderer to a circle?
+ * 
+ * note - I've randomly chosen between calling things "draw" and "render". TODO maybe use draw for small components and render for whole canvases?
  */
 export class WorldRenderer{
     constructor(seed, world){
@@ -507,8 +509,13 @@ export class WorldRenderer{
             viewport.canvas.quadraticCurveTo((bodyCentre.x + Math.cos(angle + Math.PI * 0.9) * r * 0.9), (bodyCentre.y + Math.sin(angle + Math.PI * 0.9) * r * 0.9), (bodyCentre.x + Math.cos(angle + Math.PI) * r * 1.1), (bodyCentre.y + Math.sin(angle + Math.PI) * r * 1.1))
             viewport.canvas.quadraticCurveTo((bodyCentre.x + Math.cos(angle - Math.PI * 0.9) * r * 0.9), (bodyCentre.y + Math.sin(angle - Math.PI * 0.9) * r * 0.9), (aboveExhast.x + Math.cos(angle + Math.PI / 2) * r * 0.1), (aboveExhast.y + Math.sin(angle + Math.PI / 2) * r * 0.1))
         }
+
+        let shipColour = ship.colour;
+        if (!ship.alive){
+            shipColour = ship.colour.adjustBrightness(0.5);
+        }
         
-        viewport.canvas.fillStyle = ship.colour;
+        viewport.canvas.fillStyle = shipColour;
         viewport.canvas.beginPath()
         finFunc();
         viewport.canvas.fill();
@@ -528,7 +535,7 @@ export class WorldRenderer{
         viewport.canvas.fill();
         
         
-        viewport.canvas.fillStyle = ship.colour;
+        viewport.canvas.fillStyle = shipColour;
         viewport.canvas.beginPath();
         bodyFunc();
         viewport.canvas.fill()
@@ -540,14 +547,14 @@ export class WorldRenderer{
         
         viewport.canvas.fillStyle = "rgb(132,132,0)"
         viewport.canvas.beginPath();
-        viewport.canvas.arc((bodyCentre.x + Math.cos(angle) * r * 0.3), (bodyCentre.y + Math.sin(angle) * r * 0.3), r * 0.2*viewport.zoom, 0, Math.PI * 2, false);
+        viewport.canvas.arc((bodyCentre.x + Math.cos(angle) * r * 0.3*viewport.zoom), (bodyCentre.y + Math.sin(angle) * r * 0.3*viewport.zoom), r * 0.2*viewport.zoom, 0, Math.PI * 2, false);
         
         viewport.canvas.fill();
         
         viewport.canvas.beginPath();
         //viewport.canvas.moveTo(bodyCentre.x+Math.cos(angle)*r*0.3 + r*0.2 , bodyCentre.y+Math.sin(angle)*r*0.3)
         
-        viewport.canvas.arc((bodyCentre.x + Math.cos(angle) * r * 0.3), (bodyCentre.y + Math.sin(angle) * r * 0.3), r * 0.2*viewport.zoom, 0, Math.PI * 2, false);
+        viewport.canvas.arc((bodyCentre.x + Math.cos(angle) * r * 0.3*viewport.zoom), (bodyCentre.y + Math.sin(angle) * r * 0.3*viewport.zoom), r * 0.2*viewport.zoom, 0, Math.PI * 2, false);
         
         viewport.canvas.stroke();
 
