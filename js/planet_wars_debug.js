@@ -51,7 +51,7 @@ game.provideActionTypeChoice(players[0]);
 
 let currentPlayer = 0;
 
-game.setPlayerChosenActionCallback((info)=> {
+game.addEventListener("actionChosen", (info) => {
     game.shipLosesTemporaryEffects(players[currentPlayer]);
     if (info["action"] == "Fire"){
         game.shipFiresMissile(players[currentPlayer], info["angle"]);
@@ -64,7 +64,7 @@ game.setPlayerChosenActionCallback((info)=> {
     game.runSimulation();
 })
 
-game.setSimulationFinishedCallback(() =>{
+game.addEventListener("simulationFinished", (finishedInfo) =>{
     currentPlayer++;
     currentPlayer%=game.players.length;
     game.provideActionTypeChoice(players[currentPlayer]);

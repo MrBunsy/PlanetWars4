@@ -30,6 +30,27 @@ export class Player{
     }
 }
 
+// export class PlanetWarsEvent{
+//     constructor(type, info){
+//         //string
+//         this.type = type;
+//         //blob of json
+//         this.info = info;
+//     }
+// }
+
+class PlanetWarsEventListener{
+    constructor(eventType, callback){
+        //string or null if you want every event
+        this.eventType = eventType;
+        // (event) => {}
+        this.callback = callback;
+    }
+}
+/**
+ * Longer term plan: add an events system to World, then augment it with events from here too, then things can subscribe to specific events
+ * rather than having lots and lots of callbacks.
+ */
 export class PlanetWarsMatch{
     /**
      * Idea - this will perform some of the UI interactions so there isn't too much of that (or ideally any) in the PlanetWarsSocketClient
@@ -90,12 +111,45 @@ export class PlanetWarsMatch{
         this.simulationSpeed = 0.4;
 
         // this.world.shipHitCallback = this.shipHit.bind(this);
+        this.eventListeners = [];
     }
 
     // shipHit(hit, hitBy){
     //     this.players[hit.playerIndex].alive = false;
 
     // }
+
+    eventOccured(eventType, info){
+        for(const listener of this.eventListeners){
+            if (listener.eventType == eventType){
+                listener.callback(info);
+            }
+        }
+    }
+
+    removeEventListener(eventListener){
+        const index = this.eventListeners.indexOf(eventListener);
+        if(index >= 0){
+            this.eventListeners.splice(index, 1);
+            return true;
+        }else{
+            console.log("Can't remove event listener, not found")
+        }
+        return false;
+    }
+
+    /**
+     * Add a callback that will be called when eventType occurs.
+     * Returns an object which can be used to later remove the listener
+     * @param {*} eventType 
+     * @param {*} callback 
+     * @returns 
+     */
+    addEventListener(eventType, callback){
+        let newListener = new PlanetWarsEventListener(eventType, callback)
+        this.eventListeners.push(newListener);
+        return newListener;
+    }
 
     setPlayerChosenActionCallback(callback){
         this.playerChosenActionCallback = callback;
@@ -333,6 +387,7 @@ export class PlanetWarsMatch{
         //clear the aiming doodad
         this.renderer.liveViewports[0].clear();
         this.playerChosenActionCallback(info);
+        this.eventOccured("actionChosen", info);
     }
 
     actionChosen(player, action){
@@ -344,9 +399,11 @@ export class PlanetWarsMatch{
                 
             break;
             case "shield":
-                this.playerChosenActionCallback({
+                let info = {
                     "action": "Shield",            
-                });
+                };
+                this.playerChosenActionCallback();
+                this.eventOccured("actionChosen", info);
             break;
         }
     }
@@ -360,6 +417,11 @@ export class PlanetWarsMatch{
 
     allMissilesFinished(){
         this.simulationFinishedCallback();
+        let info = {
+            "survivors": this.getLivePlayerIndexes(),
+            "gameOver": this.isGameOver()
+        };
+        this.eventOccured("simulationFinished", info);
     }
 
     updateSimulation(){
