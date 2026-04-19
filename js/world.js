@@ -14,7 +14,7 @@ import { PlanetWarsEventSource } from "./events.js";
 //     }
 // }
 
-class PlayerShip extends PhysicsEntity{
+export class PlayerShip extends PhysicsEntity{
     colours = [
         // "rgb(255,0,0)",
         // "rgb(0,0,255)",
@@ -104,7 +104,8 @@ class Missile extends PhysicsEntity{
         if(otherEntity instanceof PlayerShip){
             if (!otherEntity.shieldActive){
                 otherEntity.kill(this.playerIndex);
-                this.world.shipHit(this, otherEntity);
+                //will try can trigger everything from the more generic missileHit event
+                // this.world.shipHit(this, otherEntity);
             }
         }
         // console.log("COLLISION")
@@ -179,14 +180,18 @@ export class World extends PlanetWarsEventSource{
         this.planetDensityMultiplier=0.3;
         
         this.generateMap();
-        // this.shipHitCallback=(ship, hitByShip) => {}
 
     }
 
-    shipHit(ship, shipThatShot){
-        //TODO grey and cross them out
-    }
+    // shipHit(ship, shipThatShot){
+    //     //TODO grey and cross them out
+    // }
 
+    /**
+     * Do not use publicly, doesn't trigger event
+     * @param {*} playerIndex 
+     * @param {*} velocity 
+     */
     _fireMissile(playerIndex, velocity){
         let position = this.ships[playerIndex].position.add(velocity.unit().multiply(this.shipRadius + this.missileRadius + 1))
         let missile = new Missile(this, this.missileRadius,position, velocity, playerIndex);
@@ -194,6 +199,7 @@ export class World extends PlanetWarsEventSource{
         this.physics.addEntity(missile)
 
     }
+
     fireMissileAtAngle(playerIndex, angle){
         this.ships[playerIndex].angle = angle;
         this._fireMissile(playerIndex, polar(angle, this.maxMissileSpeed));
@@ -221,7 +227,10 @@ export class World extends PlanetWarsEventSource{
         this.eventOccured("missileHit", {
             "missile": missile,
             "hit": otherEntity
-        })
+        });
+        // if(otherEntity instanceof PlayerShip){
+
+        // }
     }
 
     getLiveMissileCount(){

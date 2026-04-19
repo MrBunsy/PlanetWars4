@@ -1,5 +1,5 @@
 import { WorldRenderer, Viewport } from "./render.js";
-import { World } from "./world.js";
+import { PlayerShip, World } from "./world.js";
 import { polar, Vector } from "./geometry.js";
 import { PlanetWarsEventSource } from "./events.js";
 
@@ -91,14 +91,6 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
         this.world = null;
         this.renderer = null;
         this.players = players;
-        // fired a missile, or brought up shields, etc
-        this.playerChosenActionCallback = (actionInfo)=>{
-            // console.log(`Fire missile ${player.index}: ${this.radiansToDegrees(angleRadians)}`)
-        }
-
-        this.simulationFinishedCallback = ()=>{
-            console.log(`Simulation finished`);
-        }
 
         this.fps = 30;
         this.delay_ms = 1000/this.fps;
@@ -107,21 +99,21 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
 
         //how fast to playback simulation. Want it slow enough to be fun to watch, but not so slow as to get boring
         this.simulationSpeed = 0.4;
+
+        this.addEventListener("missileHit", (info) => {this.missileHit(info["missile"], info["hit"])})
     }
 
-    // shipHit(hit, hitBy){
-    //     this.players[hit.playerIndex].alive = false;
-
-    // }
-
-
-    setPlayerChosenActionCallback(callback){
-        this.playerChosenActionCallback = callback;
+    missileHit(missile, hitEntity){
+        if(hitEntity instanceof PlayerShip){
+            //redraw the background as the ship is now dead.
+            //TODO when animations are involved this will need to occur after the animation?
+            this.renderer.renderBackground();
+        }
+        //the missile object is about to be destroyed, since we only render every x timesteps there's a good chance it leaves a gap in its train
+        //without this extra call to render
+        this.renderer.renderTrails();
     }
 
-    setSimulationFinishedCallback(callback){
-        this.simulationFinishedCallback = callback
-    }
 
     isGameOver(){
         return this.world.getLivePlayerCount() <= 1;
@@ -154,13 +146,14 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
         this.renderer.addLiveViewport(missileViewPort);
         this.renderer.addTrailsViewport(missileTrailsViewPort)
         
-        this.renderer.renderBackground()
+        this.renderer.renderBackground();
 
         for(let i =0; i<this.players.length; i++){
             this.players[i].setShip(this.world.ships[i]);
         }
 
         this.world.addEventListener(null, this.worldEvent.bind(this));
+
 
         console.log(`New round: zoom ${zoom}, world radius: ${radius}, canvas_size: ${canvas_size}`)
     }
@@ -352,6 +345,8 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
     playerFiresMissile(){
         //TODO also remove event listeners?
         clearInterval(this.aimingInterval);
+        //TODO better way of removing the listener?
+        this.liveCanvasElement.onclick = ()=>{};
 
         this.fireControlDiv.classList.add("hidden");
 
@@ -364,7 +359,6 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
         }
         //clear the aiming doodad
         this.renderer.liveViewports[0].clear();
-        this.playerChosenActionCallback(info);
         this.eventOccured("actionChosen", info);
     }
 
@@ -380,7 +374,6 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
                 let info = {
                     "action": "Shield",            
                 };
-                this.playerChosenActionCallback();
                 this.eventOccured("actionChosen", info);
             break;
         }
@@ -394,7 +387,6 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
     }
 
     allMissilesFinished(){
-        this.simulationFinishedCallback();
         let info = {
             "survivors": this.getLivePlayerIndexes(),
             "gameOver": this.isGameOver()

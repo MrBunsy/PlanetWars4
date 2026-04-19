@@ -23,13 +23,18 @@ if(playerCount == null){
     playerCount = 2;
 }
 
+let shields = params.get("shields");
+if (shields == null){
+    shields = 0;
+}
+
 console.log(seed)
 
 let info_blurb = document.getElementById("info_blurb");
 
 let players = [];
 for (let i =0; i<playerCount;i++){
-    let player = new Player(i,`Player ${i}`, 0);
+    let player = new Player(i,`Player ${i}`, shields);
     players.push(player);
 
 }
@@ -51,7 +56,7 @@ startOfPlayersTurn(players[currentPlayer]);
 
 
 
-game.setPlayerChosenActionCallback((info)=> {
+game.addEventListener("actionChosen", (info) => {
     game.shipLosesTemporaryEffects(players[currentPlayer]);
 
     if (info["action"] == "Fire"){

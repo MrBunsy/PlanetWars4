@@ -352,8 +352,8 @@ class Game extends MessageResponder{
         this.game = new PlanetWarsMatch(this.mainDiv.querySelector("#game_div"), this.players);
 
         
-        this.game.setSimulationFinishedCallback(()=>{this.allMissilesFinished()})
-        this.game.setPlayerChosenActionCallback((actionInfo)=>{
+        this.game.addEventListener("simulationFinished", (finishedInfo) =>{this.allMissilesFinished()})
+        this.game.addEventListener("actionChosen", (actionInfo) => {
             this.actionPlanned(actionInfo)
         })
 
