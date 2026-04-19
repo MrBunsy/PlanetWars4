@@ -64,17 +64,17 @@ game.setPlayerChosenActionCallback((info)=> {
     game.runSimulation();
 })
 
-game.setSimulationFinishedCallback(() =>{
+game.addEventListener("simulationFinished", (finishedInfo) =>{
     
-    if (!game.isGameOver()){
+    if (!finishedInfo["gameOver"]){
         do{
             currentPlayer++;
-            currentPlayer%=game.players.length;
+            currentPlayer%=players.length;
         }while(!players[currentPlayer].isAlive())
         startOfPlayersTurn(players[currentPlayer]);
     }else{
         //TODO
-        let survivors = game.getLivePlayerIndexes();
+        let survivors = finishedInfo["survivors"];
         if(survivors.length > 0){
             info_blurb.innerHTML = `Player ${survivors[0]} wins`
             info_blurb.style.color=players[survivors[0]].ship.colour.toString();

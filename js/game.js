@@ -1,6 +1,7 @@
 import { WorldRenderer, Viewport } from "./render.js";
 import { World } from "./world.js";
 import { polar, Vector } from "./geometry.js";
+import { PlanetWarsEventSource } from "./events.js";
 
 
 export class Player{
@@ -30,34 +31,31 @@ export class Player{
     }
 }
 
-// export class PlanetWarsEvent{
-//     constructor(type, info){
-//         //string
-//         this.type = type;
-//         //blob of json
-//         this.info = info;
-//     }
-// }
+/**
+ * Existing events:
+ * simulationFinished, {
+            "survivors": this.getLivePlayerIndexes(),
+            "gameOver": this.isGameOver()
+        };
 
-class PlanetWarsEventListener{
-    constructor(eventType, callback){
-        //string or null if you want every event
-        this.eventType = eventType;
-        // (event) => {}
-        this.callback = callback;
-    }
-}
+    actionChosen, {
+            "action": "Fire", "Shield"
+            "angle": angleRads
+        }
+ */
+
 /**
  * Longer term plan: add an events system to World, then augment it with events from here too, then things can subscribe to specific events
  * rather than having lots and lots of callbacks.
  */
-export class PlanetWarsMatch{
+export class PlanetWarsMatch extends PlanetWarsEventSource{
     /**
      * Idea - this will perform some of the UI interactions so there isn't too much of that (or ideally any) in the PlanetWarsSocketClient
      * This can be shared between multiplayer and debug
      * this will provide a (hopefully) clean API that the multiplayer can interact with.
      */
     constructor(mainGameDiv, players){
+        super();
         this.mainGameDiv = mainGameDiv;
         //TODO make this element by element? then dispense with teh queryselectors below.
         this.mainGameDiv.innerHTML=`<h2 id="player_info"></h2>
@@ -109,9 +107,6 @@ export class PlanetWarsMatch{
 
         //how fast to playback simulation. Want it slow enough to be fun to watch, but not so slow as to get boring
         this.simulationSpeed = 0.4;
-
-        // this.world.shipHitCallback = this.shipHit.bind(this);
-        this.eventListeners = [];
     }
 
     // shipHit(hit, hitBy){
@@ -119,37 +114,6 @@ export class PlanetWarsMatch{
 
     // }
 
-    eventOccured(eventType, info){
-        for(const listener of this.eventListeners){
-            if (listener.eventType == eventType){
-                listener.callback(info);
-            }
-        }
-    }
-
-    removeEventListener(eventListener){
-        const index = this.eventListeners.indexOf(eventListener);
-        if(index >= 0){
-            this.eventListeners.splice(index, 1);
-            return true;
-        }else{
-            console.log("Can't remove event listener, not found")
-        }
-        return false;
-    }
-
-    /**
-     * Add a callback that will be called when eventType occurs.
-     * Returns an object which can be used to later remove the listener
-     * @param {*} eventType 
-     * @param {*} callback 
-     * @returns 
-     */
-    addEventListener(eventType, callback){
-        let newListener = new PlanetWarsEventListener(eventType, callback)
-        this.eventListeners.push(newListener);
-        return newListener;
-    }
 
     setPlayerChosenActionCallback(callback){
         this.playerChosenActionCallback = callback;
@@ -195,7 +159,21 @@ export class PlanetWarsMatch{
         for(let i =0; i<this.players.length; i++){
             this.players[i].setShip(this.world.ships[i]);
         }
+
+        this.world.addEventListener(null, this.worldEvent.bind(this));
+
         console.log(`New round: zoom ${zoom}, world radius: ${radius}, canvas_size: ${canvas_size}`)
+    }
+
+    /**
+     * listener for any events produced from the World, probably while simulations occuring.
+     * planning to use this for dealing with powerups and animations
+     * @param {*} eventType 
+     * @param {*} info 
+     */
+    worldEvent(eventType, info){
+        //parrot it out to anything interested (probably the animation system when it exists)
+        this.eventOccured(eventType, info);
     }
 
     provideActionTypeChoice(player){

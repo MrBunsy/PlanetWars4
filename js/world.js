@@ -3,6 +3,7 @@
 import { SeededRandom, Vector, polar } from "./geometry.js";
 import { PhysicsEngine, PhysicsEntity } from "./physics.js";
 import { Colour } from "./colour.js"
+import { PlanetWarsEventSource } from "./events.js";
 
 /***
  * 
@@ -109,6 +110,7 @@ class Missile extends PhysicsEntity{
         // console.log("COLLISION")
         this.physics.removeEntity(this);
         this.physics = null;
+        this.world.missileHit(this, otherEntity);
         this.world.removeMissile(this)
     }
 }
@@ -136,12 +138,12 @@ class Crate extends PhysicsEntity{
 /**
  * Idea: for animations have an event system which spews out events, then have a subscribing system instead of adding more and more callbacks
  */
-export class World{
+export class World extends PlanetWarsEventSource{
     /***
      * Holds the state of the world and will interact with the physics engine to run a single match
      */
     constructor(players, seed, radius=400, maxRadius=-1, planetMinR=20, planetMaxR=50, shipRadius=12, missileRadius=1, blackHoleRadius=5, maxMissileSpeed=100){
-        
+        super();
         this.playerCount = players;
         this.random = new SeededRandom(seed);
         
@@ -194,16 +196,32 @@ export class World{
     }
     fireMissileAtAngle(playerIndex, angle){
         this.ships[playerIndex].angle = angle;
-        this._fireMissile(playerIndex, polar(angle, this.maxMissileSpeed))
+        this._fireMissile(playerIndex, polar(angle, this.maxMissileSpeed));
+        this.eventOccured("missileFired", {
+            "ship": this.ships[playerIndex],
+            "angle": angle
+        })
     }
 
     useShield(playerIndex, enable=true, shieldType){
         this.ships[playerIndex].useShield(enable);
+        this.eventOccured("shieldUsed", {
+            "ship": this.ships[playerIndex],
+            "type": shieldType
+        })
     }
 
     removeMissile(missile){
         const index = this.missiles.indexOf(missile);
         this.missiles.splice(index,1);
+    }
+
+    missileHit(missile, otherEntity){
+        //might want to break these down a bit. missileHitPlanetLike? missileHitShip?
+        this.eventOccured("missileHit", {
+            "missile": missile,
+            "hit": otherEntity
+        })
     }
 
     getLiveMissileCount(){
