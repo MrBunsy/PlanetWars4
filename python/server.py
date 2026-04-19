@@ -409,6 +409,7 @@ class Game(MessageResponder):
             player = {
                 "index": i,
                 "client": client,
+                "alive": True,
                 # "colour": TODO
             }
             self.players.append(player)
@@ -446,11 +447,23 @@ class Game(MessageResponder):
             print(f"Game {self.name} finished! ")
             #TODO
 
-        if game_over != self.turns[-1].results[0].message.game_over:
+        execution_finished_message = self.turns[-1].results[0].message
+
+        if game_over != execution_finished_message.game_over:
             raise ValueError("Doesn't look like there are enough players left alive for the game to not be over?")
 
-        self.broadcast(self.turns[-1].results[0].message.to_json())
+
+
+        # for player in execution_finished_message.players:
+        #     self.players[player.index]["alive"] = player.alive
+        #     print(f"execution_finished_message: Player {player['index']} alive? {player['alive']}")
+    
+        for player in self.players:
+            player["alive"] = player["index"] in self.turns[-1].results[0].alive_players()
+
+        self.broadcast(execution_finished_message.to_json())
         self.turns.append(Game.Turn())
+
         if game_over:
             self.state = GameState.FINISHED
         else:
@@ -479,20 +492,25 @@ class Game(MessageResponder):
         for client in self.clients:
             await client.websocket.send(message_string)
 
-    def got_from_all_players(self, got_from_list):
-        #got a plan for every currently connected client
+    def got_from_all_players(self, got_from_list, must_be_alive=False):
+        #got a plan for every currently connected client and ALIVE player!
         ready_player_indexes = [plan.player_index for plan in got_from_list]
         for client in self.clients:
-            if self.get_player_index(client) not in ready_player_indexes:
+            if (self.player_is_alive(client) or not must_be_alive) and self.get_player_index(client) not in ready_player_indexes:
+                #we have an alive client who isn't in the ready list (they haven't submitted a plan)
                 return False
         return True
 
+    def player_is_alive(self, client):
+        return self.players[self.get_player_index(client)]["alive"]
 
     async def process_player_plan(self, message, client):
         if self.state != GameState.PLANNING:
             raise ValueError(f"Not in planning state, invalid to submit plan from player {self.get_player_index(client)}")
+        if not self.player_is_alive(client):
+            raise ValueError(f"Dead player {self.get_player_index(client)} has tried to submit a plan")
         self.turns[-1].add_plan(Game.Plan(message, self.get_player_index(client)))
-        if self.got_from_all_players(self.turns[-1].plans):
+        if self.got_from_all_players(self.turns[-1].plans, must_be_alive=True):
             print(f"Game {self.name} has received all plans")
             #got all the plans for the currently connected clients (happy to skip disconnected players for now)
             await self.execute_plans()

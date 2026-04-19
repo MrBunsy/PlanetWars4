@@ -391,7 +391,13 @@ class Game extends MessageResponder{
         this.state = "PLANNING";
         this.gameStatusHeader.innerHTML = "Choose Your Action";
         this.game.loseAllTemporaryEffects();
-        this.game.provideActionTypeChoice(this.players[this.playerIndex]);
+        if(this.players[this.playerIndex].ship.alive){
+            this.game.provideActionTypeChoice(this.players[this.playerIndex]);
+        }else{
+            this.gameStatusHeader.innerHTML = "Your ship has been hit";
+            //skip the planning state
+            this.state = "PLANNED";
+        }
 
     }
 
