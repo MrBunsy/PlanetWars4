@@ -24,6 +24,7 @@ export class PlanetWarsEventSource{
                 listener.callback(eventType, info);
             }
         }
+        console.log(`Event: ${eventType}: ${info}`)
     }
 
     removeEventListener(eventListener){

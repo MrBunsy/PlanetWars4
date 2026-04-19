@@ -101,6 +101,7 @@ class Missile extends PhysicsEntity{
     }
 
     collisionWith(otherEntity){
+        //TODO move this logic into world
         if(otherEntity instanceof PlayerShip){
             if (!otherEntity.shieldActive){
                 otherEntity.kill(this.playerIndex);
@@ -109,10 +110,12 @@ class Missile extends PhysicsEntity{
             }
         }
         // console.log("COLLISION")
+        this.world.missileHit(this, otherEntity);
+        
         this.physics.removeEntity(this);
         this.physics = null;
-        this.world.missileHit(this, otherEntity);
         this.world.removeMissile(this)
+        this.world = null;
     }
 }
 
