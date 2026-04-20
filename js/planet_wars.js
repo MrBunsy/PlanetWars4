@@ -23,8 +23,4 @@ import { PlanetWarsSocketClient } from './multiplayer.js';
 // world.fireMissile(0, new Vector(-10,-10)); 
 let socket = new WebSocket("/ws");
 
-let lobby = new PlanetWarsSocketClient(socket, (newStateObject) =>{
-    //um, I'm not sure why I created this callback now.
-    console.log("state changed")
-}
-);
+let lobby = new PlanetWarsSocketClient(socket);

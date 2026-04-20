@@ -14,6 +14,7 @@ export class PlanetWarsEventSource{
     }
 
     eventOccured(eventType, info){
+        console.log(`Event: ${eventType}: ${info}`)
         for(const listener of this.eventListeners){
             if (listener.eventType == eventType){
                 listener.callback(info);
@@ -24,7 +25,7 @@ export class PlanetWarsEventSource{
                 listener.callback(eventType, info);
             }
         }
-        console.log(`Event: ${eventType}: ${info}`)
+        
     }
 
     removeEventListener(eventListener){

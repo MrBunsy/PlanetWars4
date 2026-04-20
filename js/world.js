@@ -205,7 +205,12 @@ export class World extends PlanetWarsEventSource{
 
     fireMissileAtAngle(playerIndex, angle){
         this.ships[playerIndex].angle = angle;
-        this._fireMissile(playerIndex, polar(angle, this.maxMissileSpeed));
+        let speed = this.maxMissileSpeed;
+        //another quick debug bodge
+        // if(playerIndex == 0){
+        //     speed*=0.5;
+        // }
+        this._fireMissile(playerIndex, polar(angle, speed));
         this.eventOccured("missileFired", {
             "ship": this.ships[playerIndex],
             "angle": angle
@@ -254,6 +259,12 @@ export class World extends PlanetWarsEventSource{
 
     generateMap(){
         let attempts = 0;
+        // //DEBUG BODGE, 
+        //     this.physics.release()
+        //     this.physics = new PhysicsEngine(this.maxRadius);
+        //     this.generateShips();
+        //     this.physics.addEntities(this.ships);
+        //     return;
         do{
             this.physics.release()
             this.physics = new PhysicsEngine(this.maxRadius);

@@ -190,6 +190,8 @@ Message.mapping = {
     "LobbyInfo": LobbyInfoMessage,
     //we send one to the server with our simulation results, then we get one back from the server to confirm
     "ExecutionFinished": ExecutionFinishedMessage,
+    //when we connect to the server for the first time
+    "Hello": Message,
 };
 
 /**
@@ -226,6 +228,7 @@ class MessageResponder{
 export class PlanetWarsSocketClient{
     constructor(websocket){
         this.websocket = websocket;
+        // callback for when we change state
         this.messageResponder = new MasterLobby(websocket, (newmessageResponder) => {
             this.messageResponder.cleanUp();
             this.messageResponder = newmessageResponder;
@@ -260,7 +263,11 @@ class MasterLobby extends MessageResponder{
         this.joinForm.reset();
         this.nameBox = document.getElementById("planet_wars_player_name");
         // this.nameBox.reset();
-        this.roomListing = this.mainDiv.querySelector("#room_list")
+        this.roomListing = this.mainDiv.querySelector("#room_list");
+
+        // websocket.addEventListener("open", (event) => {
+        //     // socket.send("Hello Server!");
+        //     });
         
         this.joinForm.onsubmit = (event) =>{
             event.preventDefault();
@@ -304,6 +311,12 @@ class MasterLobby extends MessageResponder{
     processMessage(message){
         super.processMessage(message);
         switch(message.type){
+            // case "Hello":
+            //     //now connected to the server, fire off our name
+            //     // ah, this worked when server was set to cache, but now it disables cache we never keep our name in the form.
+            //     // TODO cookies!
+            //     this.updateName();
+            // break;
             case "RoomInfo":
                 //we have joined a room successfully
                 let room = new Room(this.websocket, this.stateChangeCallback, message)
