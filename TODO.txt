@@ -7,7 +7,51 @@
  - Crates and powerups!
    - Multi-missile? fire more than one at a time
    - blackhole creator - turns a planet into a black hole (animation that turns whole screen white like a nuke?)
+   - plain old planet buster
    - bouncy planets
    - shield which kills the otherplayer?
    - shield which returns the missile?
+   - heatmap of gravitational potential?
+   - path prediction?
+   - multiple scouting missiles, can't kill anyone but you can send off lots?
+   - launchable shields?
+   - cluster missile that splits into lots after x time?
  - player names somewhere - in a legend? aroudn the edge of teh map?
+ - also report who's ready
+ - turn off dead ships engines
+ - fade dead players' trails aggressively?
+ - use space on the right to improving aiming? highlight old routes when hovering?
+
+an offensive and a defensive action per turn?
+
+queue up things to happen on a missile along its path (triggered by time?)
+
+how about lots of changes to gravity? 
+ - lots of powerups that change things?
+ - moving planets?
+
+do you have path prediction combined with gravity changing lots?
+
+reserve of energy that is recharged between goes, choose how to spend it?
+ - postive gravity to yourself
+ - path prediction
+ - missile effects?
+
+
+scouting missiles idea (from ant) - use a go to fire off a series of missiles which can't kill, but can pathfind
+
+
+Keep current game mode, without shields, as "Classic"
+
+
+Energy spend game mode idea:
+X energy per go. Any left over lost or added to next go?
+can spend on:
+ - sheild, more energy, more negative gravity
+ - missiles, fire multiple if enough energy?
+ - missile speed? (bringing it back after all HAH)
+ - missile modifiers, TODO
+
+
+another idea, maybe classic mode only? at the end of the game, animate all the missiles flying at once.
+probably can't do from physics as this might be different with the missiles, but could do from keeping a log of tracks and time?

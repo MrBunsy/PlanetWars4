@@ -267,7 +267,7 @@ export class WorldRenderer{
         }
     }
 
-    dimTrails(dimBy=0.9){
+    dimTrails(dimBy=0.8){
         //decrease opacity of trails to slowly fade old trails
         for(const viewport of this.trailsViewports){
             if(viewport.enabled){

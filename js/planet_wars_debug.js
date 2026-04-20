@@ -41,6 +41,8 @@ for (let i =0; i<playerCount;i++){
 
 // let world = new World(playerCount, seed, 500, 30, 80);
 
+//Message from server  {"type": "StartGame", "seed": 988812, "players": ["Luke", "Ant", "MrThePaul"], "player_index": 0}
+//CAN ant hit luke?
 
 
 let game = new PlanetWarsMatch(document.getElementById("planet_wars_game"), players)
