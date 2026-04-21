@@ -15,20 +15,24 @@ import {Vector, polar} from './geometry.js'
  * Only need to suport circles with mass
  */
 export class PhysicsEntity{
-    constructor(physics, radius, mass, position, immobile=False, velocity=new Vector(0,0)){
+    constructor(physics, radius, mass, position, immobile=False, velocity=new Vector(0,0), privateMass=0){
         this.physics = physics
         this.radius = radius;
         this.mass = mass;
         this.immobile = immobile;
         this.position = position;
         this.velocity = velocity;
+        // this will be affected by all other masses, but won't affect them
+        this.privateMass = privateMass;
 
-        //back to the World object this is for
-        // this.reference = reference;
 
         this.newPosition = new Vector();
         this.oldPosition = position.copy();
         this.oldPositions = [];
+    }
+
+    getExtraForce(position, velocity){
+        return new Vector(0,0);
     }
 
     collisionWith(otherEntity){
@@ -145,7 +149,7 @@ export class PhysicsEngine{
     }
 
     getAccelerationForEntity(entity, velocity, position){
-        let force = this.getGravityForces(entity, position).add(this.getFrictionForces(velocity));
+        let force = this.getGravityForces(entity, position).add(this.getFrictionForces(velocity)).add(entity.getExtraForce(position, velocity));
         let acceleration = force.multiply(entity.mass);
         return acceleration;
     }
@@ -229,7 +233,8 @@ export class PhysicsEngine{
     getGravityForces(entity, entityPos)
     {
         let force=new Vector(0,0);
-        if(entity.mass > 0)
+        const effectiveMass = entity.mass + entity.privateMass;
+        if(effectiveMass > 0)
         {
             for(const otherEntity of this.entities)
             {
@@ -244,7 +249,7 @@ export class PhysicsEngine{
                     //f=k.q1.q2/r^2
                     //or gravity:
                     //f=G*m1*m2/r**2
-                    let gravityForce=this.G*otherEntity.mass*entity.mass/rsqrd;
+                    let gravityForce=this.G*otherEntity.mass*effectiveMass/rsqrd;
                     // let gravityAngle=Math.atan2(entityPos.y-otherEntity.position.y,entityPos.x-otherEntity.position.x);
                     // with two positive masses this will pull the objects together
                     let gravityDirection=otherEntity.position.subtract(entityPos).unit()

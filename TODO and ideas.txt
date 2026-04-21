@@ -54,4 +54,10 @@ can spend on:
 
 
 another idea, maybe classic mode only? at the end of the game, animate all the missiles flying at once.
-probably can't do from physics as this might be different with the missiles, but could do from keeping a log of tracks and time?
+probably can't do from physics as this might be different with the missiles masses, but could do from keeping a log of tracks and time?
+
+
+ant: Another idea: you shoot a "beam" of say 10 degrees, and it shows you highlighted on the map every area you can reach by shooting a missile within those 10 degrees.
+ So it shows you whether a route is viable, and gives you a feel for the gravity field, but not the exact angle you need to hit someone
+
+from this and the animatino idea at the end - should I add an option to the physics engine so missiles gravity doesn't interact with each other by default?

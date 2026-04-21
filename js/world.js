@@ -92,8 +92,8 @@ class BlackHole extends PhysicsEntity{
 }
 
 class Missile extends PhysicsEntity{
-    constructor(world, radius, position, velocity, playerIndex){
-        super(world.physics, radius, 1, position, false, velocity);
+    constructor(world, radius, position, velocity, playerIndex, mass=1){
+        super(world.physics, radius, mass, position, false, velocity);
         this.world = world;
         this.playerIndex = playerIndex;
         this.ship = world.ships[playerIndex];
@@ -105,11 +105,55 @@ class Missile extends PhysicsEntity{
         if(otherEntity instanceof PlayerShip){
             if (!otherEntity.shieldActive){
                 otherEntity.kill(this.playerIndex);
-                //will try can trigger everything from the more generic missileHit event
-                // this.world.shipHit(this, otherEntity);
             }
         }
-        // console.log("COLLISION")
+        this.world.missileHit(this, otherEntity);
+        
+        this.physics.removeEntity(this);
+        this.physics = null;
+        this.world.removeMissile(this)
+        this.world = null;
+    }
+}
+
+/**
+ * Idea - missile that accelerates in the position it's already going
+ */
+class RocketMissile extends Missile{
+    constructor(world, radius, position, velocity, playerIndex, thrust=50){
+        super(world, radius, position, velocity, playerIndex);
+        this.thrust = thrust;
+    }
+
+    getExtraForce(position, velocity){
+        //extra force in the direction we're already travelling
+        return velocity.unit().multiply(this.thrust);
+    }
+}
+
+class HomingMissile extends RocketMissile{
+    constructor(world, radius, position, velocity, playerIndex, target, thrust=100){
+        super(world, radius, position, velocity, playerIndex, thrust);
+        this.target = target;
+    }
+
+    getExtraForce(position, velocity){
+        //extra force towards the target
+        return this.target.subtract(position).unit().multiply(this.thrust);
+    }
+}
+
+/**
+ * A missile which won't influence anything else
+ */
+class TestMissile extends Missile{
+    constructor(world, radius, position, velocity, playerIndex){
+        super(world, radius, position, velocity, playerIndex);
+        this.privateMass = this.mass;
+        this.mass = 0;
+    }
+
+    collisionWith(otherEntity){
         this.world.missileHit(this, otherEntity);
         
         this.physics.removeEntity(this);
@@ -197,6 +241,7 @@ export class World extends PlanetWarsEventSource{
      */
     _fireMissile(playerIndex, velocity){
         let position = this.ships[playerIndex].position.add(velocity.unit().multiply(this.shipRadius + this.missileRadius + 1))
+        // let missile = new HomingMissile(this, this.missileRadius,position, velocity, playerIndex, this.ships[1].position);
         let missile = new Missile(this, this.missileRadius,position, velocity, playerIndex);
         this.missiles.push(missile)
         this.physics.addEntity(missile)
