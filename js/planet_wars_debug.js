@@ -55,12 +55,7 @@ let currentPlayer = 0;
 
 game.addEventListener("actionChosen", (actionPlan) => {
     game.shipLosesTemporaryEffects(players[currentPlayer]);
-    // if (info["action"] == "Fire"){
-    //     game.shipFiresMissile(players[currentPlayer], info["angle"]);
-    // }
-    // if (info["action"] == "Shield"){
-    //     game.shipUsesShield(players[currentPlayer]);
-    // }
+
     
     let message = actionPlan.toMessageJSON();
     message["player"] = currentPlayer;

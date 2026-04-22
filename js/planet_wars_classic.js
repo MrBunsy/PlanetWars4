@@ -3,7 +3,7 @@
 import {World} from './world.js'
 import {WorldRenderer, Viewport} from './render.js'
 import {Vector} from './geometry.js'
-import { PlanetWarsMatch, Player } from './game.js';
+import { actionMapping, PlanetWarsMatch, Player } from './game.js';
 
 /**
  
@@ -56,15 +56,13 @@ startOfPlayersTurn(players[currentPlayer]);
 
 
 
-game.addEventListener("actionChosen", (info) => {
+game.addEventListener("actionChosen", (actionPlan) => {
     game.shipLosesTemporaryEffects(players[currentPlayer]);
 
-    if (info["action"] == "Fire"){
-        game.shipFiresMissile(players[currentPlayer], info["angle"]);
-    }
-    if (info["action"] == "Shield"){
-        game.shipUsesShield(players[currentPlayer]);
-    }
+    let message = actionPlan.toMessageJSON();
+    message["player"] = currentPlayer;
+    //seems that you can't call a static method from the instanciated object in js.
+    actionMapping[message["action"]].enact(game, message);
     
     game.runSimulation();
 })
