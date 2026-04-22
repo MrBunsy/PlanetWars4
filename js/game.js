@@ -3,14 +3,221 @@ import { PlayerShip, World } from "./world.js";
 import { polar, Vector } from "./geometry.js";
 import { PlanetWarsEventSource } from "./events.js";
 
+/**
+ * Still thinking about best implementation - should Game and World provide a basic toolkit 
+ * and Actions make use of that? or should this just be an identifier and all the logic lives in a mess
+ * in Game? Given I don't have a full scope of actions I'm planning to implement, it's hard to guess
+ */
+class Action{
+    constructor(game, name, humanName){
+        this.game = game;
+        //for logging and messages to server
+        this.name = name;
+        // for the UI
+        this.humanName = humanName;
+    }
+
+    /**
+     * The player has chosen to this action
+     * @param {Game} game - reference to Game object
+     * @param {Player} player - refernce to Player which chose the action
+     */
+    chosen(game, player){
+        
+    }
+    
+    /**
+     * action chosen, server (or whatever) has told us to actually make it occur
+     */
+    deploy(){
+
+    }
+
+    /**
+     * Return json which can be sent to the server
+     * @returns 
+     */
+    toMessageJSON(){
+        return {
+            "type":"PlayerPlan",
+            "action": this.name,
+        }
+    }
+
+    static enact(game, jsonBlob){
+    }
+
+    toString(){
+        return `ActionPlan ${this.name}`
+    }
+
+    // /**
+    //  * From an ExecutePlan message, deserialise and get us ready to use this.deploy()
+    //  * @param {*} jsonBlob 
+    //  */
+    // static fromJSON(game, jsonBlob){
+    //     return new actionMapping[jsonBlob["action"]](jsonBlob);
+    // }
+}
+
+class FireMissileAction extends Action{
+    constructor(game){
+        super(game, "Missile", "Fire Missile");
+        this.fireControlDiv = game.mainGameDiv.querySelector("#fire_control");
+
+        this.fireControlForm = this.fireControlDiv.querySelector("form")
+
+        this.fireControlAngleInput = this.fireControlForm.querySelector("input[name='angle']")
+
+        this.angleRads = null;
+    }
+
+    chosen(player){
+        // game.aimMissile(player);
+        let previousShot = this.tidyAngle(player.ship.angle)
+        if(player.previousShotsDegrees.length > 0){
+            previousShot = player.previousShotsDegrees[player.previousShotsDegrees.length-1];
+        }
+        this.game.drawAimRecepticle(player, parseFloat(previousShot));
+        this.fireControlDiv.classList.remove("hidden");
+        this.fireControlAngleInput.value=previousShot;
+        this.fireControlForm.onsubmit = (event) =>{
+            event.preventDefault();
+            this.missileAimed();
+
+            return false;
+        }
+
+
+
+        this.firingPlayer = player;
+        this.mouseDown = false;
+        this.mousePos = new Vector(0,0);
+        this.aimingInterval = setInterval(this.missileAimLoop.bind(this), 50);
+
+        this.missileAimLoop();
+
+        this.game.liveCanvasElement.onmousedown=(e)=>{this.mouseDown = true;}
+        document.onmouseup = (e) => {this.mouseDown = false;}
+        document.onmousemove = (e) => {
+            let rect = this.game.liveCanvasElement.getBoundingClientRect();
+            let x = e.clientX - rect.left; //x position within the element.
+            let y = e.clientY - rect.top;  //y position within the element.
+            this.mousePos = new Vector(x,y);
+        };
+        // no mouse on mobile, so a bodgey backup with click
+        this.game.liveCanvasElement.onclick=(e) => {
+            let rect = this.game.liveCanvasElement.getBoundingClientRect();
+            let x = e.clientX - rect.left; //x position within the element.
+            let y = e.clientY - rect.top;  //y position within the element.
+            this.mousePos = new Vector(x,y);
+            this.mouseDown = true;
+            this.missileAimLoop();
+            this.mouseDown = false;
+        };
+
+        this.fireControlAngleInput.addEventListener("input", (event)=>{
+            this.game.drawAimRecepticle(this.firingPlayer, event.target.value)
+        })
+    }
+
+    missileAimLoop(){
+        if(!this.mouseDown){
+            return;
+        }
+        let currentAngleString = this.fireControlAngleInput.value;
+        let mousePosWorld = this.game.renderer.liveViewports[0].translateFromPixelToWorld(this.mousePos);
+        let angleRad = this.firingPlayer.ship.position.angleTo(mousePosWorld);
+        let newAngleString = this.tidyAngle(angleRad);
+        if (newAngleString != currentAngleString){
+            this.game.drawAimRecepticle(this.firingPlayer, parseFloat(newAngleString));
+            this.fireControlAngleInput.value = newAngleString;
+        }
+        // console.log(`mousePos: ${this.mousePos}, mousePosWorld: ${mousePosWorld}, newangle: ${newAngleString}`)
+
+
+    }
+    tidyAngle(radians){
+        //turn radians (from +ve x axis rotating clockwise) into a nice round degrees (from -ve y axis rotating clockwise)
+        let degrees = FireMissileAction.radiansToDegrees(radians)
+        if (degrees < 0){
+            degrees += 360;
+        }
+        //will this result in horrible floating pointyness?
+        // degrees = Math.round(degrees*10)/10;
+        return degrees.toFixed(1);
+    }
+
+    /**
+     * From 0 pointing upwards in degrees to 0 pointing rightwards in radians
+     * @param {*} degrees 
+     * @returns 
+     */
+    static degreesToRadians(degrees){
+        return Math.PI*2*(degrees - 90)/360
+    }
+
+    /**
+     * From 0 pointing rightwards in radians to 0 pointing upwards in degrees
+     * @param {*} radians 
+     */
+    static radiansToDegrees(radians){
+        return 360*(radians + Math.PI/2)/(Math.PI*2);
+    }
+
+    missileAimed(){
+        //TODO also remove event listeners?
+        clearInterval(this.aimingInterval);
+        //TODO better way of removing the listener?
+        this.game.liveCanvasElement.onclick = ()=>{};
+
+        this.fireControlDiv.classList.add("hidden");
+
+        this.angleRads = FireMissileAction.degreesToRadians(parseFloat(this.fireControlAngleInput.value));
+        this.firingPlayer.previousShotsDegrees.push(this.fireControlAngleInput.value)
+        // let info = {
+        //     "action": "Fire",
+        //     "angle": this.angleRads
+            
+        // }
+        //clear the aiming doodad
+        // this.game.renderer.liveViewports[0].clear();
+        // this.eventOccured("actionChosen", info);
+        this.game.actionPlanFinalised(this);
+    }
+
+    toMessageJSON(){
+        let info = super.toMessageJSON(); 
+            
+        info["angle"]= this.angleRads
+            
+        
+        return info
+    }
+
+    static enact(game, jsonBlob){
+        game.shipFiresMissile(parseInt(jsonBlob["player"]), parseFloat(jsonBlob["angle"]))
+    }
+}
+
+// class FireMissileAction{
+//     constructor(jsonBlob) {
+//         this.
+//     }
+// }
+
+
+export const actionMapping = {"Missile": FireMissileAction}
 
 export class Player{
-    constructor(index, name = "Unnamed Player", shields=3){
+    constructor(index, name = "Unnamed Player", shields=3, energyBudget=0){
         this.index = index;
         this.name = name;
         this.ship = null;
-        this.shields = shields;
+        //simple shields were never really used in initial testing, leaving them functional in case there's a use case again for them
+        this.simpleShields = shields;
         this.previousShotsDegrees = [];
+        this.energyBudget = energyBudget;
     }
 
     isAlive(){
@@ -23,10 +230,10 @@ export class Player{
 
     getAvailableActions(){
         //TODO actions might want to be objects with options, for now just strings until I've got a better idea of what I'll implement
-        let actions = ["missile"]
-        if (this.shields > 0){
-            actions.push("shield")
-        }
+        let actions = [FireMissileAction]
+        // if (this.simpleShields > 0){
+        //     actions.push("shields")
+        // }
         return actions;
     }
 }
@@ -76,11 +283,11 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
 
 
         this.actionChooserDiv = mainGameDiv.querySelector("#action_chooser");
-        this.fireControlDiv = mainGameDiv.querySelector("#fire_control");
+        // this.fireControlDiv = mainGameDiv.querySelector("#fire_control");
 
-        this.fireControlForm = this.fireControlDiv.querySelector("form")
+        // this.fireControlForm = this.fireControlDiv.querySelector("form")
 
-        this.fireControlAngleInput = this.fireControlForm.querySelector("input[name='angle']")
+        // this.fireControlAngleInput = this.fireControlForm.querySelector("input[name='angle']")
 
         this.backgroundCanvasElement = mainGameDiv.querySelector("#background");
         // ships and shields and things which don't change often - changed my mind and will just redraw the background
@@ -171,26 +378,32 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
 
     provideActionTypeChoice(player){
         //provide options
+        
+        let actionClasses = player.getAvailableActions();
+        let actionPlans = [];
+        for (const actionClass of actionClasses){
+            actionPlans.push(new actionClass(this))
+        }
+        if(actionPlans.length == 1){
+            //skip the options and go straight to aiming
+            actionPlans[0].chosen(player);
+            return;
+        }
         this.actionChooserDiv.classList.remove("hidden");
         this.actionChooserDiv.innerHTML="Choose Move:"
-        let actions = player.getAvailableActions();
-        if(actions.length == 1 && actions[0] == "missile"){
-            //skip the options and go straight to aiming
-            this.actionChosen(player, actions[0]);
-        }
-        for (const action of actions){
+        for (const actionPlan of actionPlans){
             let button = document.createElement("button");
-            let text = action;
-            if(action == "shield"){
-                text = `Use Shield (${player.shields} remaining)`;
-            }
-            if(action == "missile"){
-                text = "Fire Missile (unlimited)";
-            }
-            button.value=action;
-            button.innerHTML = text;
+            // let text = actionPlan;
+            // if(actionPlan == "shield"){
+            //     text = `Use Shield (${player.shields} remaining)`;
+            // }
+            // if(actionPlan == "missile"){
+            //     text = "Fire Missile (unlimited)";
+            // }
+            button.value=actionPlan.name;
+            button.innerHTML = actionPlan.humanName;
             button.onclick=() =>{
-                this.actionChosen(player, action);
+               actionPlan.chosen(player);
             }
             this.actionChooserDiv.appendChild(button);
         }
@@ -199,80 +412,80 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
 
     
 
-    /**
-     * bind mouse ups and downs and render aim receptical
-     * @param {*} player 
-     */
-    aimMissile(player){
+    // /**
+    //  * bind mouse ups and downs and render aim receptical
+    //  * @param {*} player 
+    //  */
+    // aimMissile(player){
         
-        let previousShot = this.tidyAngle(player.ship.angle)
-        if(player.previousShotsDegrees.length > 0){
-            previousShot = player.previousShotsDegrees[player.previousShotsDegrees.length-1];
-        }
-        this.drawAimRecepticle(player, parseFloat(previousShot));
-        this.fireControlDiv.classList.remove("hidden");
-        this.fireControlAngleInput.value=previousShot;
-        this.fireControlForm.onsubmit = (event) =>{
-            event.preventDefault();
-            this.playerFiresMissile();
-            return false;
-        }
+    //     let previousShot = this.tidyAngle(player.ship.angle)
+    //     if(player.previousShotsDegrees.length > 0){
+    //         previousShot = player.previousShotsDegrees[player.previousShotsDegrees.length-1];
+    //     }
+    //     this.drawAimRecepticle(player, parseFloat(previousShot));
+    //     this.fireControlDiv.classList.remove("hidden");
+    //     this.fireControlAngleInput.value=previousShot;
+    //     this.fireControlForm.onsubmit = (event) =>{
+    //         event.preventDefault();
+    //         this.playerFiresMissile();
+    //         return false;
+    //     }
 
 
 
-        this.firingPlayer = player;
-        this.mouseDown = false;
-        this.mousePos = new Vector(0,0);
-        this.aimingInterval = setInterval(this.missileAimLoop.bind(this), 50);
+    //     this.firingPlayer = player;
+    //     this.mouseDown = false;
+    //     this.mousePos = new Vector(0,0);
+    //     this.aimingInterval = setInterval(this.missileAimLoop.bind(this), 50);
 
-        this.missileAimLoop();
+    //     this.missileAimLoop();
 
-        this.liveCanvasElement.onmousedown=(e)=>{this.mouseDown = true;}
-        document.onmouseup = (e) => {this.mouseDown = false;}
-        document.onmousemove = (e) => {
-            let rect = this.liveCanvasElement.getBoundingClientRect();
-            let x = e.clientX - rect.left; //x position within the element.
-            let y = e.clientY - rect.top;  //y position within the element.
-            this.mousePos = new Vector(x,y);
-        };
-        // no mouse on mobile, so a bodgey backup with click
-        this.liveCanvasElement.onclick=(e) => {
-            let rect = this.liveCanvasElement.getBoundingClientRect();
-            let x = e.clientX - rect.left; //x position within the element.
-            let y = e.clientY - rect.top;  //y position within the element.
-            this.mousePos = new Vector(x,y);
-            this.mouseDown = true;
-            this.missileAimLoop();
-            this.mouseDown = false;
-        };
+    //     this.liveCanvasElement.onmousedown=(e)=>{this.mouseDown = true;}
+    //     document.onmouseup = (e) => {this.mouseDown = false;}
+    //     document.onmousemove = (e) => {
+    //         let rect = this.liveCanvasElement.getBoundingClientRect();
+    //         let x = e.clientX - rect.left; //x position within the element.
+    //         let y = e.clientY - rect.top;  //y position within the element.
+    //         this.mousePos = new Vector(x,y);
+    //     };
+    //     // no mouse on mobile, so a bodgey backup with click
+    //     this.liveCanvasElement.onclick=(e) => {
+    //         let rect = this.liveCanvasElement.getBoundingClientRect();
+    //         let x = e.clientX - rect.left; //x position within the element.
+    //         let y = e.clientY - rect.top;  //y position within the element.
+    //         this.mousePos = new Vector(x,y);
+    //         this.mouseDown = true;
+    //         this.missileAimLoop();
+    //         this.mouseDown = false;
+    //     };
 
-        this.fireControlAngleInput.addEventListener("input", (event)=>{
-            this.drawAimRecepticle(this.firingPlayer, event.target.value)
-        })
-    }
+    //     this.fireControlAngleInput.addEventListener("input", (event)=>{
+    //         this.drawAimRecepticle(this.firingPlayer, event.target.value)
+    //     })
+    // }
 
     
 
     /**
      * For multiplayer, or something else controlling this object to choose to use user input to launch a missile
-     * @param {*} player 
+     * @param {*} playerIndex 
      * @param {*} angleRadians 
      */
-    shipFiresMissile(player, angleRadians){
-        this.world.fireMissileAtAngle(player.index, angleRadians);
+    shipFiresMissile(playerIndex, angleRadians){
+        this.world.fireMissileAtAngle(playerIndex, angleRadians);
         //redraw background as the ship will have changed angle
         this.renderer.renderBackground();
     }
 
-    shipUsesShield(player, shieldType){
-        this.world.useShield(player.index, true, shieldType);
-        player.shields--;
-        this.renderer.renderBackground();
-    }
+    // shipUsesShield(player, shieldType){
+    //     this.world.useShield(player.index, true, shieldType);
+    //     player.shields--;
+    //     this.renderer.renderBackground();
+    // }
 
     //disable sheilds and anything else that lasts only one turn
     shipLosesTemporaryEffects(player){
-        this.world.useShield(player.index, false);
+        // this.world.useShield(player.index, false);
         this.renderer.renderBackground();
     }
 
@@ -282,101 +495,95 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
         }
     }
 
-    /**
-     * From 0 pointing upwards in degrees to 0 pointing rightwards in radians
-     * @param {*} degrees 
-     * @returns 
-     */
-    degreesToRadians(degrees){
-        return Math.PI*2*(degrees - 90)/360
-    }
-
-    /**
-     * From 0 pointing rightwards in radians to 0 pointing upwards in degrees
-     * @param {*} radians 
-     */
-    radiansToDegrees(radians){
-        return 360*(radians + Math.PI/2)/(Math.PI*2);
-    }
+    
 
     drawAimRecepticle(player, currentAngleDegrees){
         let oldAnglesRadians = []
         for(const oldAngleDeg of player.previousShotsDegrees){
-            oldAnglesRadians.unshift(this.degreesToRadians(oldAngleDeg))
+            oldAnglesRadians.unshift(FireMissileAction.degreesToRadians(oldAngleDeg))
         }
 
 
-        this.renderer.renderAimingRecepticle(this.renderer.liveViewports[0], player.ship, this.degreesToRadians(currentAngleDegrees), oldAnglesRadians);
+        this.renderer.renderAimingRecepticle(this.renderer.liveViewports[0], player.ship, FireMissileAction.degreesToRadians(currentAngleDegrees), oldAnglesRadians);
     }
 
-    tidyAngle(radians){
-        //turn radians (from +ve x axis rotating clockwise) into a nice round degrees (from -ve y axis rotating clockwise)
-        let degrees = this.radiansToDegrees(radians)
-        if (degrees < 0){
-            degrees += 360;
-        }
-        //will this result in horrible floating pointyness?
-        // degrees = Math.round(degrees*10)/10;
-        return degrees.toFixed(1);
-    }
+    
 
-    missileAimLoop(){
-        if(!this.mouseDown){
-            return;
-        }
-        let currentAngleString = this.fireControlAngleInput.value;
-        let mousePosWorld = this.renderer.liveViewports[0].translateFromPixelToWorld(this.mousePos);
-        let angleRad = this.firingPlayer.ship.position.angleTo(mousePosWorld);
-        let newAngleString = this.tidyAngle(angleRad);
-        if (newAngleString != currentAngleString){
-            this.drawAimRecepticle(this.firingPlayer, parseFloat(newAngleString));
-            this.fireControlAngleInput.value = newAngleString;
-        }
-        // console.log(`mousePos: ${this.mousePos}, mousePosWorld: ${mousePosWorld}, newangle: ${newAngleString}`)
+    // missileAimLoop(){
+    //     if(!this.mouseDown){
+    //         return;
+    //     }
+    //     let currentAngleString = this.fireControlAngleInput.value;
+    //     let mousePosWorld = this.renderer.liveViewports[0].translateFromPixelToWorld(this.mousePos);
+    //     let angleRad = this.firingPlayer.ship.position.angleTo(mousePosWorld);
+    //     let newAngleString = this.tidyAngle(angleRad);
+    //     if (newAngleString != currentAngleString){
+    //         this.drawAimRecepticle(this.firingPlayer, parseFloat(newAngleString));
+    //         this.fireControlAngleInput.value = newAngleString;
+    //     }
+    //     // console.log(`mousePos: ${this.mousePos}, mousePosWorld: ${mousePosWorld}, newangle: ${newAngleString}`)
 
 
-    }
+    // }
 
     /**
      * End result of choosing to fire a missile
      * Intended to be called from the UI after aimMissile()
      * just fires off a callback and tidies up the redraw loop from aiming
      */
-    playerFiresMissile(){
-        //TODO also remove event listeners?
-        clearInterval(this.aimingInterval);
-        //TODO better way of removing the listener?
-        this.liveCanvasElement.onclick = ()=>{};
+    // playerFiresMissile(){
+    //     //TODO also remove event listeners?
+    //     clearInterval(this.aimingInterval);
+    //     //TODO better way of removing the listener?
+    //     this.liveCanvasElement.onclick = ()=>{};
 
-        this.fireControlDiv.classList.add("hidden");
+    //     this.fireControlDiv.classList.add("hidden");
 
-        let angleRads = this.degreesToRadians(parseFloat(this.fireControlAngleInput.value));
-        this.firingPlayer.previousShotsDegrees.push(this.fireControlAngleInput.value)
-        let info = {
-            "action": "Fire",
-            "angle": angleRads
+    //     let angleRads = this.degreesToRadians(parseFloat(this.fireControlAngleInput.value));
+    //     this.firingPlayer.previousShotsDegrees.push(this.fireControlAngleInput.value)
+    //     let info = {
+    //         "action": "Fire",
+    //         "angle": angleRads
             
-        }
-        //clear the aiming doodad
+    //     }
+    //     //clear the aiming doodad
+    //     this.renderer.liveViewports[0].clear();
+    //     this.eventOccured("actionChosen", info);
+    // }
+
+    // actionChosen(player, action){
+    //     this.actionChooserDiv.classList.add("hidden");
+    //     console.log(`player: ${player} ${action}`);
+    //     switch(action){
+    //         case "missile":
+    //             this.aimMissile(player);
+                
+    //         break;
+    //         case "shield":
+    //             let info = {
+    //                 "action": "Shield",            
+    //             };
+    //             this.eventOccured("actionChosen", info);
+    //         break;
+    //     }
+    // }
+
+    /**
+     * Player has aimed the missile, or pressed a button
+     * either way the action has been chosen
+     */
+    actionPlanFinalised(actionPlan){
+        // for now, parrot it out
+        // TODO if we have an energy budget, queue them up
+        //wipe off any aiming receptical
         this.renderer.liveViewports[0].clear();
-        this.eventOccured("actionChosen", info);
+        this.actionChooserDiv.classList.add("hidden");
+        this.eventOccured("actionChosen", actionPlan);
     }
 
-    actionChosen(player, action){
-        this.actionChooserDiv.classList.add("hidden");
-        console.log(`player: ${player} ${action}`);
-        switch(action){
-            case "missile":
-                this.aimMissile(player);
-                
-            break;
-            case "shield":
-                let info = {
-                    "action": "Shield",            
-                };
-                this.eventOccured("actionChosen", info);
-            break;
-        }
+    //from the server or controller, make the plan actually happen!
+    enactPlan(plan){
+        actionMapping[plan["action"]].enact(this, plan);
     }
 
     runSimulation(){

@@ -1,7 +1,7 @@
 import {World} from './world.js'
 import {WorldRenderer, Viewport} from './render.js'
 import {Vector} from './geometry.js'
-import { PlanetWarsMatch, Player } from './game.js';
+import { actionMapping, PlanetWarsMatch, Player } from './game.js';
 
 /**
  * message structure:
@@ -150,10 +150,14 @@ class Plan extends Message{
         super(json, true);
         this.player = this.getInt("player");
         this.action = this.getString("action");
-        if(!["Fire", "Shield"].includes(this.action)){
+        if(!Object.keys(actionMapping).includes(this.action)){
             throw new Error(`Player action (${this.action}) not recognised`)
         }
-        this.angle = this.getFloat("angle");
+        try{
+            this.angle = this.getFloat("angle");
+        }catch(e){
+            
+        }
     }
 }
 
@@ -485,13 +489,13 @@ class Game extends MessageResponder{
     actionPlanned(actionInfo){
         if(this.state == "PLANNING"){
 
-            let message = {
-                "type":"PlayerPlan",
-                "action": actionInfo["action"],
-                "angle": actionInfo["angle"]
-            }
+            // let message = {
+            //     "type":"PlayerPlan",
+            //     "action": actionInfo["action"],
+            //     "angle": actionInfo["angle"]
+            // }
             this.state = "PLANNED";
-            this.send(message)
+            this.send(actionInfo.toMessageJSON())
             
         }
     }
@@ -515,14 +519,15 @@ class Game extends MessageResponder{
     executePlan(message){
         if (this.state == "PLANNED"){
             for (const plan of message.plans){
-                switch(plan.action){
-                    case "Fire":
-                        this.game.shipFiresMissile(this.players[plan.player], plan.angle);
-                        break;
-                    case "Shield":
-                        this.game.shipUsesShield(this.players[plan.player])
-                        break;
-                }
+                // switch(plan.action){
+                //     case "Fire":
+                //         this.game.shipFiresMissile(this.players[plan.player], plan.angle);
+                //         break;
+                //     case "Shield":
+                //         this.game.shipUsesShield(this.players[plan.player])
+                //         break;
+                // }
+                this.game.enactPlan(plan);
             }
             this.runSimulation();
         }

@@ -36,7 +36,7 @@ class GameState(Enum):
 ROOM_NAME_LENGTH = 4
 
 class PlayerAction(Enum):
-    Fire = "Fire Missile"
+    Missile = "Fire Missile"
     Shield = "Use Shield"
 class Message:
 
@@ -151,7 +151,7 @@ class PlayerPlanMessage(Message):
         super().__init__(json_blob)
         self.angle = 0
         self.action = self.process_enum("action", PlayerAction)
-        if self.action == PlayerAction.Fire:
+        if self.action == PlayerAction.Missile:
             self.angle = self.process_float("angle")
 
 class ExecutionFinishedMessage(Message):
@@ -457,7 +457,7 @@ class Game(MessageResponder):
         # for player in execution_finished_message.players:
         #     self.players[player.index]["alive"] = player.alive
         #     print(f"execution_finished_message: Player {player['index']} alive? {player['alive']}")
-    
+
         for player in self.players:
             player["alive"] = player["index"] in self.turns[-1].results[0].alive_players()
 

@@ -264,10 +264,12 @@ export class World extends PlanetWarsEventSource{
 
     useShield(playerIndex, enable=true, shieldType){
         this.ships[playerIndex].useShield(enable);
-        this.eventOccured("shieldUsed", {
-            "ship": this.ships[playerIndex],
-            "type": shieldType
-        })
+        if (enable){
+            this.eventOccured("shieldUsed", {
+                "ship": this.ships[playerIndex],
+                "type": shieldType
+            })
+        }
     }
 
     removeMissile(missile){
