@@ -248,13 +248,9 @@ export class World extends PlanetWarsEventSource{
 
     }
 
-    fireMissileAtAngle(playerIndex, angle){
+    fireMissileAtAngle(playerIndex, angle, power=1){
         this.ships[playerIndex].angle = angle;
-        let speed = this.maxMissileSpeed;
-        //another quick debug bodge
-        // if(playerIndex == 0){
-        //     speed*=0.5;
-        // }
+        let speed = this.maxMissileSpeed*power;
         this._fireMissile(playerIndex, polar(angle, speed));
         this.eventOccured("missileFired", {
             "ship": this.ships[playerIndex],

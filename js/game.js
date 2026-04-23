@@ -291,12 +291,6 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
 
 
         this.actionChooserDiv = mainGameDiv.querySelector("#action_chooser");
-        // this.fireControlDiv = mainGameDiv.querySelector("#fire_control");
-
-        // this.fireControlForm = this.fireControlDiv.querySelector("form")
-
-        // this.fireControlAngleInput = this.fireControlForm.querySelector("input[name='angle']")
-
         this.backgroundCanvasElement = mainGameDiv.querySelector("#background");
         // ships and shields and things which don't change often - changed my mind and will just redraw the background
         // this.occasionalChangesCanvasElement = mainGameDiv.querySelector("#occasional_changes");
@@ -401,13 +395,6 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
         this.actionChooserDiv.innerHTML="Choose Move:"
         for (const actionPlan of actionPlans){
             let button = document.createElement("button");
-            // let text = actionPlan;
-            // if(actionPlan == "shield"){
-            //     text = `Use Shield (${player.shields} remaining)`;
-            // }
-            // if(actionPlan == "missile"){
-            //     text = "Fire Missile (unlimited)";
-            // }
             button.value=actionPlan.name;
             button.innerHTML = actionPlan.humanName;
             button.onclick=() =>{
@@ -419,59 +406,6 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
     }
 
     
-
-    // /**
-    //  * bind mouse ups and downs and render aim receptical
-    //  * @param {*} player 
-    //  */
-    // aimMissile(player){
-        
-    //     let previousShot = this.tidyAngle(player.ship.angle)
-    //     if(player.previousShotsDegrees.length > 0){
-    //         previousShot = player.previousShotsDegrees[player.previousShotsDegrees.length-1];
-    //     }
-    //     this.drawAimRecepticle(player, parseFloat(previousShot));
-    //     this.fireControlDiv.classList.remove("hidden");
-    //     this.fireControlAngleInput.value=previousShot;
-    //     this.fireControlForm.onsubmit = (event) =>{
-    //         event.preventDefault();
-    //         this.playerFiresMissile();
-    //         return false;
-    //     }
-
-
-
-    //     this.firingPlayer = player;
-    //     this.mouseDown = false;
-    //     this.mousePos = new Vector(0,0);
-    //     this.aimingInterval = setInterval(this.missileAimLoop.bind(this), 50);
-
-    //     this.missileAimLoop();
-
-    //     this.liveCanvasElement.onmousedown=(e)=>{this.mouseDown = true;}
-    //     document.onmouseup = (e) => {this.mouseDown = false;}
-    //     document.onmousemove = (e) => {
-    //         let rect = this.liveCanvasElement.getBoundingClientRect();
-    //         let x = e.clientX - rect.left; //x position within the element.
-    //         let y = e.clientY - rect.top;  //y position within the element.
-    //         this.mousePos = new Vector(x,y);
-    //     };
-    //     // no mouse on mobile, so a bodgey backup with click
-    //     this.liveCanvasElement.onclick=(e) => {
-    //         let rect = this.liveCanvasElement.getBoundingClientRect();
-    //         let x = e.clientX - rect.left; //x position within the element.
-    //         let y = e.clientY - rect.top;  //y position within the element.
-    //         this.mousePos = new Vector(x,y);
-    //         this.mouseDown = true;
-    //         this.missileAimLoop();
-    //         this.mouseDown = false;
-    //     };
-
-    //     this.fireControlAngleInput.addEventListener("input", (event)=>{
-    //         this.drawAimRecepticle(this.firingPlayer, event.target.value)
-    //     })
-    // }
-
     
 
     /**
@@ -479,17 +413,17 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
      * @param {*} playerIndex 
      * @param {*} angleRadians 
      */
-    shipFiresMissile(playerIndex, angleRadians){
-        this.world.fireMissileAtAngle(playerIndex, angleRadians);
+    shipFiresMissile(playerIndex, angleRadians, power=1){
+        this.world.fireMissileAtAngle(playerIndex, angleRadians, power);
         //redraw background as the ship will have changed angle
         this.renderer.renderBackground();
     }
 
-    // shipUsesShield(player, shieldType){
-    //     this.world.useShield(player.index, true, shieldType);
-    //     player.shields--;
-    //     this.renderer.renderBackground();
-    // }
+    shipUsesShield(player, shieldType){
+        this.world.useShield(player.index, true, shieldType);
+        player.shields--;
+        this.renderer.renderBackground();
+    }
 
     //disable sheilds and anything else that lasts only one turn
     shipLosesTemporaryEffects(player){
@@ -516,65 +450,6 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
     }
 
     
-
-    // missileAimLoop(){
-    //     if(!this.mouseDown){
-    //         return;
-    //     }
-    //     let currentAngleString = this.fireControlAngleInput.value;
-    //     let mousePosWorld = this.renderer.liveViewports[0].translateFromPixelToWorld(this.mousePos);
-    //     let angleRad = this.firingPlayer.ship.position.angleTo(mousePosWorld);
-    //     let newAngleString = this.tidyAngle(angleRad);
-    //     if (newAngleString != currentAngleString){
-    //         this.drawAimRecepticle(this.firingPlayer, parseFloat(newAngleString));
-    //         this.fireControlAngleInput.value = newAngleString;
-    //     }
-    //     // console.log(`mousePos: ${this.mousePos}, mousePosWorld: ${mousePosWorld}, newangle: ${newAngleString}`)
-
-
-    // }
-
-    /**
-     * End result of choosing to fire a missile
-     * Intended to be called from the UI after aimMissile()
-     * just fires off a callback and tidies up the redraw loop from aiming
-     */
-    // playerFiresMissile(){
-    //     //TODO also remove event listeners?
-    //     clearInterval(this.aimingInterval);
-    //     //TODO better way of removing the listener?
-    //     this.liveCanvasElement.onclick = ()=>{};
-
-    //     this.fireControlDiv.classList.add("hidden");
-
-    //     let angleRads = this.degreesToRadians(parseFloat(this.fireControlAngleInput.value));
-    //     this.firingPlayer.previousShotsDegrees.push(this.fireControlAngleInput.value)
-    //     let info = {
-    //         "action": "Fire",
-    //         "angle": angleRads
-            
-    //     }
-    //     //clear the aiming doodad
-    //     this.renderer.liveViewports[0].clear();
-    //     this.eventOccured("actionChosen", info);
-    // }
-
-    // actionChosen(player, action){
-    //     this.actionChooserDiv.classList.add("hidden");
-    //     console.log(`player: ${player} ${action}`);
-    //     switch(action){
-    //         case "missile":
-    //             this.aimMissile(player);
-                
-    //         break;
-    //         case "shield":
-    //             let info = {
-    //                 "action": "Shield",            
-    //             };
-    //             this.eventOccured("actionChosen", info);
-    //         break;
-    //     }
-    // }
 
     /**
      * Player has aimed the missile, or pressed a button
