@@ -11,10 +11,14 @@ import { PlanetWarsEventSource } from "./events.js";
 class Action{
     constructor(game, name, humanName){
         this.game = game;
+        
         //for logging and messages to server
         this.name = name;
         // for the UI
         this.humanName = humanName;
+
+        this.player=null;
+        this.finishedCallback=()=>{}
     }
 
     /**
@@ -22,8 +26,10 @@ class Action{
      * @param {Game} game - reference to Game object
      * @param {Player} player - refernce to Player which chose the action
      */
-    chosen(game, player){
-        
+    chosen(player, finishedCallback){
+        this.player=player;
+        //when finalised, call this.finishedCallback(this);
+        this.finishedCallback = finishedCallback
     }
     
     /**
@@ -72,7 +78,8 @@ class FireMissileAction extends Action{
         this.angleRads = null;
     }
 
-    chosen(player){
+    chosen(player, callback){
+        super.chosen(player, callback);
         // game.aimMissile(player);
         let previousShot = this.tidyAngle(player.ship.angle)
         if(player.previousShotsDegrees.length > 0){
@@ -183,7 +190,8 @@ class FireMissileAction extends Action{
         //clear the aiming doodad
         // this.game.renderer.liveViewports[0].clear();
         // this.eventOccured("actionChosen", info);
-        this.game.actionPlanFinalised(this);
+        // this.game.actionPlanFinalised(this);
+        this.finishedCallback(this);
     }
 
     toMessageJSON(){
@@ -386,7 +394,7 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
         }
         if(actionPlans.length == 1){
             //skip the options and go straight to aiming
-            actionPlans[0].chosen(player);
+            actionPlans[0].chosen(player, this.actionPlanFinalised.bind(this));
             return;
         }
         this.actionChooserDiv.classList.remove("hidden");
@@ -403,7 +411,7 @@ export class PlanetWarsMatch extends PlanetWarsEventSource{
             button.value=actionPlan.name;
             button.innerHTML = actionPlan.humanName;
             button.onclick=() =>{
-               actionPlan.chosen(player);
+               actionPlan.chosen(player, this.actionPlanFinalised.bind(this));
             }
             this.actionChooserDiv.appendChild(button);
         }
